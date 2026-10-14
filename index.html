@@ -1,0 +1,799 @@
+<!-- Chosen Palette: Slate Navy & Bordo Accent -->
+<!-- Application Structure Plan: Interactive single-page digital promissory note application featuring a dynamic input panel on the left and a real-time, legal-styled document preview on the right. Includes smooth signature capture, automated number-to-words currency formatting, DNI attachment previews, local database persistence for tracking, and instant PDF/WhatsApp export. -->
+<!-- Visualization & Content Choices: Structured HTML/CSS document layout with live interactive text updating, HTML5 Canvas for digital signature drawing, and clean card containers for user input and document verification. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Pagaré Digital</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#0a0f1d'
+                        },
+                        bordo: {
+                            600: '#9f1239',
+                            700: '#881337',
+                            800: '#4c0519'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- html2pdf.js CDN para exportación a PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,300&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .font-document {
+            font-family: 'Merriweather', serif;
+        }
+        .signature-pad {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 pb-8">
+
+    <header class="bg-navy-950 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
+        <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
+            <div class="flex items-center gap-3">
+                <div class="bg-bordo-700 text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+                    <i data-lucide="file-signature" class="w-4 h-4"></i>
+                </div>
+                <div class="flex flex-col justify-center leading-tight">
+                    <h1 class="font-bold text-sm tracking-wide text-slate-100 leading-tight">Formulario</h1>
+                    <p class="text-[10px] text-slate-400 leading-tight">Completá tus datos, firmá y generá tu pagaré digital</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <!-- FORMULARIO DE INGRESO (COLUMNA IZQUIERDA) -->
+        <section class="lg:col-span-5 space-y-6">
+
+            <!-- Formulario de Operación -->
+            <div class="bg-white rounded-xl shadow-md border border-slate-200 p-5">
+                <h2 class="text-lg font-bold text-navy-900 mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="pen-tool" class="w-5 h-5 text-bordo-700"></i>
+                        Datos de la Operación
+                    </span>
+                </h2>
+
+                <form id="pagareForm" class="space-y-4" onsubmit="event.preventDefault();">
+                    <!-- Datos Prestamista -->
+                    <div class="border-b border-slate-100 pb-3">
+                        <label class="block text-xs font-bold text-navy-900 uppercase tracking-wider mb-1.5">Prestamista</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="acreedorNombre" placeholder="Nombre Completo" value="Ledesma Orquera Gaston" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                            <input type="text" id="acreedorDni" placeholder="DNI" value="41.021.395" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Datos Solicitante -->
+                    <div class="border-b border-slate-100 pb-3">
+                        <label class="block text-xs font-bold text-navy-900 uppercase tracking-wider mb-1.5">Solicitante del Préstamo</label>
+                        <div class="space-y-2">
+                            <input type="text" id="deudorNombre" placeholder="Nombre Completo" value="" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                            <input type="text" id="deudorDni" placeholder="DNI" value="" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Verificación de Identidad por DNI -->
+                    <div class="border-b border-slate-100 pb-3">
+                        <label class="block text-xs font-bold text-bordo-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+                            <i data-lucide="shield-check" class="w-4 h-4 text-bordo-700"></i> Verificación DNI Solicitante
+                        </label>
+                        <p class="text-[11px] text-slate-500 mb-2">Adjuntá foto de frente y dorso para validar identidad.</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label for="dniFrontInput" class="cursor-pointer flex flex-col items-center justify-center p-2 border-2 border-dashed border-slate-300 rounded-lg hover:border-bordo-700 transition bg-slate-50 text-center">
+                                    <i data-lucide="camera" class="w-4 h-4 text-slate-500 mb-1"></i>
+                                    <span class="text-[10px] font-medium text-slate-600" id="labelDniFront">Frente DNI</span>
+                                </label>
+                                <input type="file" id="dniFrontInput" accept="image/*" class="hidden">
+                            </div>
+                            <div>
+                                <label for="dniBackInput" class="cursor-pointer flex flex-col items-center justify-center p-2 border-2 border-dashed border-slate-300 rounded-lg hover:border-bordo-700 transition bg-slate-50 text-center">
+                                    <i data-lucide="camera" class="w-4 h-4 text-slate-500 mb-1"></i>
+                                    <span class="text-[10px] font-medium text-slate-600" id="labelDniBack">Dorso DNI</span>
+                                </label>
+                                <input type="file" id="dniBackInput" accept="image/*" class="hidden">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detalles Financieros -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Monto en Pesos ($)</label>
+                            <input type="text" id="montoNumeros" placeholder="0" value="" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none font-semibold text-slate-900">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Monto en Letras (Automático)</label>
+                            <input type="text" id="montoLetras" value="Cero Pesos" readonly class="w-full text-sm p-2.5 border border-slate-200 bg-slate-50 rounded-lg focus:outline-none text-slate-600 font-medium cursor-not-allowed">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">Cant. Cuotas</label>
+                                <select id="cantidadCuotas" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none bg-white">
+                                    <option value="1">1 Cuota</option>
+                                    <option value="2" selected>2 Cuotas</option>
+                                    <option value="3">3 Cuotas</option>
+                                    <option value="4">4 Cuotas</option>
+                                    <option value="6">6 Cuotas</option>
+                                    <option value="8">8 Cuotas</option>
+                                    <option value="12">12 Cuotas</option>
+                                    <option value="24">24 Cuotas</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">Interés (%)</label>
+                                <input type="text" id="tasaInteres" placeholder="0" value="" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel de Firma -->
+                    <div class="pt-2">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-bold text-navy-900 uppercase tracking-wider">Firma Digital del Solicitante</label>
+                            <button type="button" id="clearCanvas" class="text-xs text-bordo-700 hover:text-bordo-800 font-medium flex items-center gap-1">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Limpiar
+                            </button>
+                        </div>
+                        <div class="border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 relative overflow-hidden">
+                            <canvas id="signatureCanvas" class="signature-pad w-full h-32 cursor-crosshair"></canvas>
+                            <span id="signaturePlaceholder" class="absolute inset-0 flex items-center justify-center text-xs text-slate-400 pointer-events-none">
+                                Firmá con el dedo o mouse aquí
+                            </span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- VISTA PREVIA Y ACCIONES (COLUMNA DERECHA) -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
+            
+            <!-- Barra de Herramientas -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
+                <span class="text-xs font-semibold text-navy-900 uppercase tracking-wider flex items-center gap-1">
+                    <i data-lucide="eye" class="w-4 h-4 text-bordo-700"></i> Vista Previa Final
+                </span>
+                <div class="flex items-center gap-2">
+                    <button id="btnSendPdfWhatsapp" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-5 py-2.5 rounded-lg transition flex items-center gap-2 shadow-md">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i> Enviar Pagaré
+                    </button>
+                </div>
+            </div>
+
+            <!-- HOJA DEL PAGARÉ -->
+            <div id="pagareDocument" class="bg-white rounded-xl border border-slate-300 p-8 sm:p-10 text-slate-900 font-document relative flex flex-col justify-between min-h-[580px]">
+                
+                <div>
+                    <!-- Encabezado -->
+                    <div class="flex justify-between items-start border-b-2 border-navy-900 pb-4 mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold tracking-wider text-navy-900">PAGARÉ DIGITAL</h2>
+                            <p class="text-xs text-slate-500 font-sans mt-0.5">Documento de Compromiso de Pago Directo</p>
+                        </div>
+                        <div class="text-right font-sans text-xs text-slate-600">
+                            <p class="font-semibold text-navy-900" id="docLugarFecha">Salta, Argentina</p>
+                            <p class="text-slate-400">Ref: <span id="docRefCode">PAG-2026-001</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Texto Legal -->
+                    <div class="text-sm leading-relaxed text-slate-800 space-y-4 mb-6">
+                        <p>
+                            Por el presente documento, me obligo a pagar a 
+                            <strong id="docAcreedor" class="font-semibold text-navy-900">Ledesma Orquera Gaston</strong> 
+                            (DNI N° <span id="docAcreedorDni">41.021.395</span>) la cantidad de 
+                            <strong class="font-semibold text-navy-900">$<span id="docMontoNum">0</span></strong> 
+                            (<span id="docMontoLetras" class="italic">Cero Pesos</span>).
+                        </p>
+
+                        <p>
+                            El pago de la presente suma se efectuará en 
+                            <strong id="docCuotasTexto" class="text-navy-900">2 cuotas mensuales</strong>, 
+                            con un interés del 
+                            <strong id="docInteres" class="text-bordo-700">0</strong>%.
+                        </p>
+                    </div>
+                </div>
+
+                <div>
+                    <!-- Verificación DNI -->
+                    <div id="dniPreviewContainer" class="hidden mb-4 border-t border-b border-slate-200 py-2.5 font-sans">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-bordo-700 mb-2 flex items-center gap-1">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Documentación de Identidad Verificada
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex flex-col items-center bg-slate-50 p-1.5 rounded border border-slate-200">
+                                <div class="w-full h-24 flex items-center justify-center overflow-hidden rounded bg-white border border-slate-200">
+                                    <img id="docDniFrontImg" class="max-h-full max-w-full object-contain" alt="DNI Frente">
+                                </div>
+                                <span class="text-[9px] font-semibold text-slate-600 mt-1">DNI - Frente</span>
+                            </div>
+                            <div class="flex flex-col items-center bg-slate-50 p-1.5 rounded border border-slate-200">
+                                <div class="w-full h-24 flex items-center justify-center overflow-hidden rounded bg-white border border-slate-200">
+                                    <img id="docDniBackImg" class="max-h-full max-w-full object-contain" alt="DNI Dorso">
+                                </div>
+                                <span class="text-[9px] font-semibold text-slate-600 mt-1">DNI - Dorso</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Firmas y Datos Solicitante -->
+                    <div class="grid grid-cols-2 gap-6 items-end border-t border-slate-200 pt-4 mb-4 font-sans">
+                        <div class="text-xs space-y-1 text-slate-700">
+                            <p class="font-bold uppercase tracking-wider text-[10px] text-slate-400">Datos del Solicitante</p>
+                            <p><span class="font-medium">Nombre:</span> <span id="docDeudor">________________________</span></p>
+                            <p><span class="font-medium">DNI:</span> <span id="docDeudorDni">________________________</span></p>
+                            <p><span class="font-medium">Estado:</span> <span class="text-emerald-700 font-semibold">Aceptado y Firmado</span></p>
+                        </div>
+
+                        <!-- Recuadro para la firma -->
+                        <div class="flex flex-col items-center">
+                            <div class="w-full h-24 border-b border-slate-400 flex items-center justify-center p-1 relative">
+                                <img id="docSignatureImg" class="max-h-full max-w-full object-contain hidden" alt="Firma Solicitante">
+                                <span id="docNoSignature" class="text-[11px] text-slate-400 italic">Pendiente de firma</span>
+                            </div>
+                            <span class="text-[10px] text-navy-900 uppercase font-semibold tracking-wider mt-1">Firma Digital Solicitante</span>
+                        </div>
+                    </div>
+
+                    <!-- Pie de Auditoría Digital -->
+                    <div class="bg-slate-50 border border-slate-200 rounded p-2.5 font-sans text-[10px] text-slate-500 leading-tight">
+                        <p class="font-bold text-navy-900 mb-0.5 flex items-center gap-1">
+                            <i data-lucide="shield" class="w-3 h-3 text-bordo-700"></i> REGISTRO DE FIRMA
+                        </p>
+                        <p id="docAuditText" class="break-all">
+                            La fecha, hora y dispositivo se registran al momento de firmar y enviar.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal de Alerta Personalizado -->
+    <div id="customModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 text-center space-y-4">
+            <h3 id="modalTitle" class="text-base font-bold text-navy-900">Mensaje</h3>
+            <p id="modalText" class="text-xs text-slate-600 leading-relaxed"></p>
+            <button id="modalCloseBtn" class="w-full bg-navy-900 text-white text-xs font-semibold py-2.5 rounded-lg hover:bg-navy-800 transition">Aceptar</button>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        function showAlert(title, text) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalText').textContent = text;
+            document.getElementById('customModal').classList.remove('hidden');
+            document.getElementById('customModal').classList.add('flex');
+        }
+
+        document.getElementById('modalCloseBtn').addEventListener('click', () => {
+            document.getElementById('customModal').classList.remove('flex');
+            document.getElementById('customModal').classList.add('hidden');
+        });
+
+        // Canvas de Firma
+        const canvas = document.getElementById('signatureCanvas');
+        const ctx = canvas.getContext('2d');
+        const placeholder = document.getElementById('signaturePlaceholder');
+        let isDrawing = false;
+        let hasSignature = false;
+        let signatureDataUrl = null;
+
+        function setCanvasDimensions() {
+            const rect = canvas.getBoundingClientRect();
+            if (canvas.width !== rect.width || canvas.height !== rect.height) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                if (hasSignature) tempCtx.drawImage(canvas, 0, 0);
+
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                if (hasSignature) ctx.drawImage(tempCanvas, 0, 0, rect.width, rect.height);
+            }
+        }
+
+        window.addEventListener('load', setCanvasDimensions);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            hasSignature = true;
+            placeholder.classList.add('hidden');
+            ctx.beginPath();
+            const pos = getPos(e);
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const pos = getPos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                signatureDataUrl = canvas.toDataURL('image/png');
+                updateDocument();
+            }
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+        canvas.addEventListener('touchend', stopDrawing);
+
+        function resetSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasSignature = false;
+            signatureDataUrl = null;
+            placeholder.classList.remove('hidden');
+            document.getElementById('docSignatureImg').classList.add('hidden');
+            document.getElementById('docNoSignature').classList.remove('hidden');
+        }
+
+        document.getElementById('clearCanvas').addEventListener('click', resetSignature);
+
+        // MANEJO FOTOS DNI
+        let dniFrontData = null;
+        let dniBackData = null;
+
+        document.getElementById('dniFrontInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    dniFrontData = evt.target.result;
+                    document.getElementById('labelDniFront').textContent = "✓ Cargado";
+                    document.getElementById('labelDniFront').classList.add("text-emerald-700", "font-bold");
+                    updateDocument();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('dniBackInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    dniBackData = evt.target.result;
+                    document.getElementById('labelDniBack').textContent = "✓ Cargado";
+                    document.getElementById('labelDniBack').classList.add("text-emerald-700", "font-bold");
+                    updateDocument();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // CAPITALIZAR NOMBRES AUTOMÁTICAMENTE (Title Case)
+        function setupCapitalizeInput(inputElem) {
+            inputElem.addEventListener('input', (e) => {
+                const start = e.target.selectionStart;
+                const end = e.target.selectionEnd;
+                e.target.value = e.target.value.replace(/\b\w/g, l => l.toUpperCase());
+                e.target.setSelectionRange(start, end);
+                updateDocument();
+            });
+        }
+
+        setupCapitalizeInput(document.getElementById('acreedorNombre'));
+        setupCapitalizeInput(document.getElementById('deudorNombre'));
+
+        // MÁSCARAS Y TRADUCCIÓN A LETRAS
+        function formatDNI(val) {
+            const digits = val.toString().replace(/\D/g, '');
+            return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        function numeroALetras(num) {
+            const Unidades = n => {
+                switch(n) {
+                    case 1: return 'Un'; case 2: return 'Dos'; case 3: return 'Tres';
+                    case 4: return 'Cuatro'; case 5: return 'Cinco'; case 6: return 'Seis';
+                    case 7: return 'Siete'; case 8: return 'Ocho'; case 9: return 'Nueve';
+                }
+                return '';
+            };
+
+            const Decenas = n => {
+                const ten = Math.floor(n / 10);
+                const one = n % 10;
+                switch(ten) {
+                    case 1:
+                        switch(one) {
+                            case 0: return 'Diez'; case 1: return 'Once'; case 2: return 'Doce';
+                            case 3: return 'Trece'; case 4: return 'Catorce'; case 5: return 'Quince';
+                            default: return 'Dieci' + Unidades(one).toLowerCase();
+                        }
+                    case 2: return one === 0 ? 'Veinte' : 'Veinti' + Unidades(one).toLowerCase();
+                    case 3: return 'Treinta' + (one > 0 ? ' y ' + Unidades(one) : '');
+                    case 4: return 'Cuarenta' + (one > 0 ? ' y ' + Unidades(one) : '');
+                    case 5: return 'Cincuenta' + (one > 0 ? ' y ' + Unidades(one) : '');
+                    case 6: return 'Sesenta' + (one > 0 ? ' y ' + Unidades(one) : '');
+                    case 7: return 'Setenta' + (one > 0 ? ' y ' + Unidades(one) : '');
+                    case 8: return 'Ochenta' + (one > 0 ? ' y ' + Unidades(one) : '');
+                    case 9: return 'Noventa' + (one > 0 ? ' y ' + Unidades(one) : '');
+                }
+                return Unidades(n);
+            };
+
+            const Centenas = n => {
+                const hundred = Math.floor(n / 100);
+                const rest = n % 100;
+                switch(hundred) {
+                    case 1: return rest > 0 ? 'Ciento ' + Decenas(rest) : 'Cien';
+                    case 2: return 'Doscientos' + (rest > 0 ? ' ' + Decenas(rest) : '');
+                    case 3: return 'Trescientos' + (rest > 0 ? ' ' + Decenas(rest) : '');
+                    case 4: return 'Cuatrocientos' + (rest > 0 ? ' ' + Decenas(rest) : '');
+                    case 5: return 'Quinientos' + (rest > 0 ? ' ' + Decenas(rest) : '');
+                    case 6: return 'Seiscientos' + (rest > 0 ? ' ' + Decenas(rest) : '');
+                    case 7: return 'Setecientos' + (rest > 0 ? ' ' + Decenas(rest) : '');
+                    case 8: return 'Ochocientos' + (rest > 0 ? ' ' + Decenas(rest) : '');
+                    case 9: return 'Novecientos' + (rest > 0 ? ' ' + Decenas(rest) : '');
+                }
+                return Decenas(n);
+            };
+
+            if (!num || num === 0) return 'Cero Pesos';
+            let data = { letras: '', resto: num };
+            
+            if (num >= 1000000) {
+                const millones = Math.floor(num / 1000000);
+                data.resto = num % 1000000;
+                data.letras += millones === 1 ? 'Un Millón de ' : Centenas(millones) + ' Millones de ';
+            }
+
+            if (data.resto >= 1000) {
+                const miles = Math.floor(data.resto / 1000);
+                data.resto = data.resto % 1000;
+                data.letras += miles === 1 ? 'Mil ' : Centenas(miles) + ' Mil ';
+            }
+
+            if (data.resto > 0) {
+                data.letras += Centenas(data.resto) + ' ';
+            }
+
+            let resultado = data.letras.replace(/\s+/g, ' ').trim();
+            if (!resultado.endsWith('Pesos')) {
+                resultado += ' Pesos';
+            }
+            return resultado;
+        }
+
+        const acreedorDniInput = document.getElementById('acreedorDni');
+        acreedorDniInput.addEventListener('input', (e) => { e.target.value = formatDNI(e.target.value); updateDocument(); });
+
+        const deudorDniInput = document.getElementById('deudorDni');
+        deudorDniInput.addEventListener('input', (e) => { e.target.value = formatDNI(e.target.value); updateDocument(); });
+
+        const montoNumerosInput = document.getElementById('montoNumeros');
+        const montoLetrasInput = document.getElementById('montoLetras');
+
+        const tasaInteresInput = document.getElementById('tasaInteres');
+        tasaInteresInput.addEventListener('input', (e) => {
+            let val = e.target.value.replace(/[^0-9.,]/g, '');
+            if (val.startsWith('0') && val.length > 1 && !val.startsWith('0.')) {
+                val = val.replace(/^0+/, '');
+            }
+            e.target.value = val;
+            updateDocument();
+        });
+
+        montoNumerosInput.addEventListener('input', (e) => {
+            const rawDigits = e.target.value.replace(/\D/g, '');
+            if (!rawDigits) {
+                e.target.value = '';
+                montoLetrasInput.value = 'Cero Pesos';
+            } else {
+                const num = parseInt(rawDigits, 10);
+                e.target.value = num.toLocaleString('es-AR');
+                montoLetrasInput.value = numeroALetras(num);
+            }
+            updateDocument();
+        });
+
+        function updateDocument() {
+            document.getElementById('docAcreedor').textContent = document.getElementById('acreedorNombre').value || '________________________';
+            document.getElementById('docAcreedorDni').textContent = document.getElementById('acreedorDni').value || '___________';
+            document.getElementById('docDeudor').textContent = document.getElementById('deudorNombre').value || '________________________';
+            document.getElementById('docDeudorDni').textContent = document.getElementById('deudorDni').value || '________________________';
+            
+            const montoTexto = document.getElementById('montoNumeros').value.trim() || '0';
+            document.getElementById('docMontoNum').textContent = montoTexto;
+            document.getElementById('docMontoLetras').textContent = document.getElementById('montoLetras').value || 'Cero Pesos';
+            document.getElementById('docInteres').textContent = document.getElementById('tasaInteres').value.trim() || '0';
+
+            const cuotas = parseInt(document.getElementById('cantidadCuotas').value || 1);
+            document.getElementById('docCuotasTexto').textContent = `${cuotas} ${cuotas === 1 ? 'cuota mensual' : 'cuotas mensuales'}`;
+
+            const now = new Date();
+            const fechaHoyStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+            document.getElementById('docLugarFecha').textContent = `Salta, Argentina - ${fechaHoyStr}`;
+
+            const dniContainer = document.getElementById('dniPreviewContainer');
+            if (dniFrontData || dniBackData) {
+                dniContainer.classList.remove('hidden');
+                if (dniFrontData) document.getElementById('docDniFrontImg').src = dniFrontData;
+                if (dniBackData) document.getElementById('docDniBackImg').src = dniBackData;
+            } else {
+                dniContainer.classList.add('hidden');
+            }
+
+            if (hasSignature && signatureDataUrl) {
+                const sigImg = document.getElementById('docSignatureImg');
+                sigImg.src = signatureDataUrl;
+                sigImg.classList.remove('hidden');
+                document.getElementById('docNoSignature').classList.add('hidden');
+            }
+
+            document.getElementById('docAuditText').textContent =
+                'La fecha, hora y dispositivo se registran al momento de firmar y enviar.';
+        }
+
+        function resetForm() {
+            document.getElementById('acreedorNombre').value = 'Ledesma Orquera Gaston';
+            document.getElementById('acreedorDni').value = '41.021.395';
+            document.getElementById('deudorNombre').value = '';
+            document.getElementById('deudorDni').value = '';
+            document.getElementById('montoNumeros').value = '';
+            document.getElementById('montoLetras').value = 'Cero Pesos';
+            document.getElementById('tasaInteres').value = '';
+            document.getElementById('cantidadCuotas').value = '2';
+            
+            dniFrontData = null;
+            dniBackData = null;
+            document.getElementById('dniFrontInput').value = '';
+            document.getElementById('dniBackInput').value = '';
+            document.getElementById('labelDniFront').textContent = "Frente DNI";
+            document.getElementById('labelDniFront').classList.remove("text-emerald-700", "font-bold");
+            document.getElementById('labelDniBack').textContent = "Dorso DNI";
+            document.getElementById('labelDniBack').classList.remove("text-emerald-700", "font-bold");
+            
+            resetSignature();
+            updateDocument();
+        }
+
+        document.querySelectorAll('#pagareForm input, #pagareForm select').forEach(input => {
+            if (input !== acreedorDniInput && input !== deudorDniInput && input !== montoNumerosInput && input !== document.getElementById('deudorNombre') && input !== document.getElementById('acreedorNombre') && input !== tasaInteresInput) {
+                input.addEventListener('input', updateDocument);
+                input.addEventListener('change', updateDocument);
+            }
+        });
+
+
+        // ===== AUDITORÍA: fecha/hora y dispositivo =====
+        function describeDevice() {
+            const ua = navigator.userAgent || '';
+            let os = 'SO desconocido';
+            let m;
+            if ((m = ua.match(/Android\s([\d.]+);?\s*([^;)]*)/))) os = 'Android ' + m[1] + (m[2] && !/^(wv|U)$/.test(m[2].trim()) ? ' (' + m[2].trim() + ')' : '');
+            else if (/iPhone/.test(ua)) os = 'iPhone (iOS)';
+            else if (/iPad/.test(ua)) os = 'iPad (iOS)';
+            else if (/Windows/.test(ua)) os = 'Windows';
+            else if (/Mac OS X/.test(ua)) os = 'macOS';
+            else if (/Linux/.test(ua)) os = 'Linux';
+            return os;
+        }
+
+        // REGISTRO AUTOMÁTICO ESTRUCTURADO AL PANEL DE COBRANZAS (SIN DEPENDER DE IMÁGENES PDF)
+        document.getElementById('btnSendPdfWhatsapp').addEventListener('click', async () => {
+            if (!hasSignature) {
+                showAlert("Firma requerida", "Por favor dibuja tu firma en el recuadro antes de enviar el pagaré.");
+                return;
+            }
+
+            const deudorNombreVal = document.getElementById('deudorNombre').value.trim();
+            const deudorDniVal = document.getElementById('deudorDni').value.trim();
+            const montoRaw = document.getElementById('montoNumeros').value.trim();
+            const acreedorNombreVal = document.getElementById('acreedorNombre').value.trim();
+            const acreedorDniVal = document.getElementById('acreedorDni').value.trim();
+            const tasaInteresVal = document.getElementById('tasaInteres').value.trim() || '0';
+
+            if (!deudorNombreVal || !deudorDniVal || !montoRaw) {
+                showAlert("Datos incompletos", "Por favor completa el nombre, DNI del solicitante y el monto del préstamo.");
+                return;
+            }
+
+            updateDocument();
+            const element = document.getElementById('pagareDocument');
+            const cuotas = parseInt(document.getElementById('cantidadCuotas').value || 1);
+            const interesVal = parseFloat(tasaInteresVal.replace(',', '.') || 0);
+            
+            const montoInicialNum = parseInt(montoRaw.replace(/\D/g, ''), 10);
+            const montoTotalNum = Math.round(montoInicialNum * (1 + (interesVal / 100)));
+            const valorCuotaNum = Math.round(montoTotalNum / cuotas);
+
+            const now = new Date();
+            const fechaInicioStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+
+            // AUDITORÍA: fecha/hora exacta y dispositivo
+            const pad = n => String(n).padStart(2, '0');
+            const fechaHoraFirma = `${fechaInicioStr} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} hs`;
+            const dispositivo = describeDevice();
+            document.getElementById('docAuditText').textContent =
+                `Fecha/Hora de creación y firma: ${fechaHoraFirma} | Dispositivo: ${dispositivo}`;
+
+            // 1. REGISTRO DE DATOS ESTRUCTURADOS (Evita lecturas lentas o erróneas de imágenes PDF)
+            try {
+                const storedActive = localStorage.getItem('cobranzas_active_db');
+                let activeClients = storedActive ? JSON.parse(storedActive) : [];
+
+                const newClient = {
+                    id: 'cli_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+                    nombre: deudorNombreVal,
+                    dni: deudorDniVal,
+                    acreedor: acreedorNombreVal,
+                    acreedorDni: acreedorDniVal,
+                    montoInicial: montoInicialNum,
+                    montoTotal: montoTotalNum,
+                    numCuotas: cuotas,
+                    valorCuota: valorCuotaNum,
+                    tasaInteres: interesVal,
+                    cuotasPagadas: 0,
+                    fechaInicio: fechaInicioStr,
+                    dniFront: dniFrontData || null,
+                    dniBack: dniBackData || null,
+                    firma: signatureDataUrl || null,
+                    estado: "Activo",
+                    dispositivo: dispositivo,
+                    fechaHoraFirma: fechaHoraFirma
+                };
+
+                activeClients.push(newClient);
+                localStorage.setItem('cobranzas_active_db', JSON.stringify(activeClients));
+                
+                // Guardamos el último solicitante para lectura rápida en el archivo de seguimiento HTML
+                localStorage.setItem('ultimo_solicitante_prestamo', JSON.stringify(newClient));
+
+            } catch (err) {
+                console.error("Error al registrar en localStorage", err);
+            }
+
+            const filename = `Pagare_${deudorNombreVal.replace(/\s+/g, '_')}.pdf`;
+            const opt = {
+                margin:       [8, 8, 8, 8],
+                filename:     filename,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { 
+                    scale: 2, 
+                    useCORS: true, 
+                    logging: false,
+                    scrollY: 0,
+                    scrollX: 0
+                },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            showAlert("Generando Pagaré...", "Guardando datos estructurados y preparando PDF...");
+
+            try {
+                // Datos que se incrustan DENTRO del PDF como capa de texto invisible,
+                // para que control.html los lea sin errores (el PDF de html2pdf es solo una imagen).
+                const payload = {
+                    v: 2,
+                    nombre: deudorNombreVal,
+                    dni: deudorDniVal,
+                    montoInicial: montoInicialNum,
+                    numCuotas: cuotas,
+                    interes: interesVal,
+                    fecha: fechaInicioStr,
+                    acreedor: acreedorNombreVal,
+                    acreedorDni: acreedorDniVal,
+                    dispositivo: dispositivo,
+                    fechaHora: fechaHoraFirma
+                };
+                const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+                const marker = 'PAGAREDATA::' + b64 + '::END';
+
+                const pdfBlob = await html2pdf().set(opt).from(element).toPdf().get('pdf').then(pdf => {
+                    pdf.setPage(1);
+                    pdf.setFont('courier', 'normal');
+                    pdf.setFontSize(2);
+                    pdf.setTextColor(255, 255, 255); // blanco sobre blanco: no se ve, pero es texto seleccionable
+                    const chunks = marker.match(/.{1,100}/g);
+                    chunks.forEach((c, i) => pdf.text(c, 2, 3 + i * 1.5));
+                    pdf.setProperties({ title: 'Pagare ' + deudorNombreVal, subject: marker });
+                    return pdf.output('blob');
+                });
+                const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+                const text = `*PAGARÉ DIGITAL REGISTRADO Y FIRMADO*\n\n` +
+                             `*Solicitante:* ${deudorNombreVal}\n` +
+                             `*DNI:* ${deudorDniVal}\n` +
+                             `*Monto:* $${montoRaw} ARS\n` +
+                             `*Plan:* ${cuotas} cuota(s)\n\n` +
+                             `_Documento de pagaré digital generado y vinculado al sistema de seguimiento._`;
+
+                document.getElementById('customModal').classList.remove('flex');
+                document.getElementById('customModal').classList.add('hidden');
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    resetForm();
+                    await navigator.share({
+                        files: [file],
+                        title: `Pagaré Digital - ${deudorNombreVal}`,
+                        text: text
+                    });
+                } else {
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+                    const encodedText = encodeURIComponent(text + `\n\n(Se ha descargado el archivo "${filename}").`);
+                    window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+
+                    resetForm();
+                }
+
+            } catch (err) {
+                console.error(err);
+                showAlert("Error", "Ocurrió un inconveniente al generar o compartir el archivo PDF.");
+            }
+        });
+
+        setTimeout(() => {
+            setCanvasDimensions();
+            updateDocument();
+        }, 150);
+    </script>
+</body>
+</html>
