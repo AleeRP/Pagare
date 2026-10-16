@@ -43,6 +43,11 @@
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
         }
+        /* El panel no se dibuja hasta que Firebase confirme que la cuenta tiene permiso */
+        body:not(.cloud-ok) > header,
+        body:not(.cloud-ok) > main {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="min-h-screen text-slate-800 pb-12">
@@ -642,6 +647,7 @@
         const tsOf = (c) => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
 
         function showLogin(msg, showBtn) {
+            document.body.classList.remove('cloud-ok');
             loginScreen.classList.remove('hidden');
             loginMsg.textContent = msg;
             loginBtn.classList.toggle('hidden', !showBtn);
@@ -654,6 +660,8 @@
             window.setCloudData(a, h);
         }
 
+        const ready = { activos: false, historial: false };
+
         function listen(name) {
             return onSnapshot(collection(db, name), (snap) => {
                 remote[name] = new Map();
@@ -663,17 +671,31 @@
                     return data;
                 });
                 pushToUi();
+                ready[name] = true;
+                // El panel recién se muestra cuando Firebase confirmó el permiso en AMBAS colecciones
+                if (ready.activos && ready.historial) {
+                    document.body.classList.add('cloud-ok');
+                    loginScreen.classList.add('hidden');
+                }
             }, async (err) => {
                 console.error(err);
                 stopListening();
                 const mail = auth.currentUser && auth.currentUser.email ? auth.currentUser.email : 'esta cuenta';
                 try { await signOut(auth); } catch (e) {}
-                window.setCloudData([], []);
+                clearData();
                 showLogin('La cuenta ' + mail + ' no tiene permiso para ver estos datos.', true);
             });
         }
 
         function stopListening() { unsubs.forEach(u => u()); unsubs = []; }
+
+        // Borra de la memoria y de la pantalla cualquier ficha que haya quedado
+        function clearData() {
+            document.body.classList.remove('cloud-ok');
+            remote.activos = new Map(); remote.historial = new Map();
+            lists.activos = []; lists.historial = [];
+            window.setCloudData([], []);
+        }
 
         async function sync(active, history) {
             const batch = writeBatch(db);
@@ -709,13 +731,18 @@
 
         async function logout() {
             stopListening();
+            clearData();
+            showLogin('Sesión cerrada.', true);
             await signOut(auth);
         }
 
         onAuthStateChanged(auth, async (user) => {
             stopListening();
+            clearData();
+            ready.activos = false; ready.historial = false;
             if (!user) { showLogin('Iniciá sesión con tu cuenta de Google autorizada.', true); return; }
-            loginScreen.classList.add('hidden');
+            // La pantalla de acceso sigue tapando todo hasta que Firebase confirme el permiso
+            showLogin('Verificando acceso…', false);
             unsubs = [listen('activos'), listen('historial')];
         });
 
