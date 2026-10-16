@@ -47,6 +47,22 @@
 </head>
 <body class="min-h-screen text-slate-800 pb-12">
 
+    <!-- PANTALLA DE ACCESO (cerradura) -->
+    <div id="loginScreen" class="fixed inset-0 z-[60] bg-navy-950 flex items-center justify-center p-6">
+        <div class="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl text-center space-y-4">
+            <div class="bg-bordo-700 text-white w-10 h-10 rounded-lg flex items-center justify-center mx-auto">
+                <i data-lucide="lock" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-navy-900 text-base">Ficha de cobranza</h2>
+                <p id="loginMsg" class="text-xs text-slate-500 mt-1">Conectando…</p>
+            </div>
+            <button id="loginBtn" onclick="cloudApi.login()" class="hidden w-full bg-bordo-700 hover:bg-bordo-800 text-white text-xs font-semibold h-10 rounded-lg transition">
+                Entrar con Google
+            </button>
+        </div>
+    </div>
+
     <header class="bg-navy-950 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
         <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
             <div class="flex items-center gap-3">
@@ -63,6 +79,9 @@
                 <button onclick="document.getElementById('clientFileInput').click()" class="bg-bordo-700 hover:bg-bordo-800 text-white text-[10px] font-medium h-8 px-3 rounded-lg transition inline-flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap">
                     <i data-lucide="upload-cloud" class="w-3 h-3 shrink-0"></i>
                     <span class="leading-none self-center">Cargar cliente</span>
+                </button>
+                <button onclick="cloudApi.logout()" title="Cerrar sesión" class="ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
                 </button>
             </div>
         </div>
@@ -205,20 +224,23 @@
             else modal.classList.add('hidden');
         }
 
-        function loadDatabase() {
-            const storedActive = localStorage.getItem('cobranzas_active_db');
-            const storedHistory = localStorage.getItem('cobranzas_history_db');
-
-            activeClients = storedActive ? JSON.parse(storedActive) : [];
-            historyClients = storedHistory ? JSON.parse(storedHistory) : [];
-
+        // Los datos viven en Firestore (nube). El módulo de Firebase (abajo) los entrega con setCloudData().
+        function setCloudData(active, history) {
+            activeClients = active;
+            historyClients = history;
             renderDashboard();
         }
 
         function saveDatabase() {
-            localStorage.setItem('cobranzas_active_db', JSON.stringify(activeClients));
-            localStorage.setItem('cobranzas_history_db', JSON.stringify(historyClients));
             renderDashboard();
+            if (!window.cloudApi) {
+                showCustomAlert("Sin conexión con la nube", "No se pudo guardar el cambio. Revisá tu conexión y recargá la página.");
+                return;
+            }
+            window.cloudApi.sync(activeClients, historyClients).catch(err => {
+                console.error(err);
+                showCustomAlert("No se pudo guardar", "El cambio no llegó a la nube. Revisá tu conexión e intentá de nuevo.\n" + (err && err.code ? "(" + err.code + ")" : ""));
+            });
         }
 
         async function handleClientFileSelect(event) {
@@ -576,7 +598,131 @@
             lucide.createIcons();
         }
 
-        window.addEventListener('load', loadDatabase);
+        window.addEventListener('load', renderDashboard);
+        setTimeout(() => {
+            if (!window.cloudApi) {
+                document.getElementById('loginMsg').textContent = 'No se pudo conectar con la nube. Revisá tu conexión a internet y recargá la página.';
+            }
+        }, 10000);
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZn5e6jrwGfNtk0ov8HKyQ736OIzf5OHI",
+            authDomain: "fichaseguimiento.firebaseapp.com",
+            projectId: "fichaseguimiento",
+            storageBucket: "fichaseguimiento.firebasestorage.app",
+            messagingSenderId: "95928333880",
+            appId: "1:95928333880:web:7b1890dcf84691b08998cd"
+        };
+
+        // Cuentas autorizadas (las mismas deben estar en las reglas de Firestore)
+        const ALLOWED = ["musicaquerida@gmail.com", "micaaranda387@gmail.com"];
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const loginScreen = document.getElementById('loginScreen');
+        const loginMsg = document.getElementById('loginMsg');
+        const loginBtn = document.getElementById('loginBtn');
+
+        const remote = { activos: new Map(), historial: new Map() };
+        const lists = { activos: [], historial: [] };
+        let unsubs = [];
+
+        const stable = (v) => {
+            if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
+            if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
+            return JSON.stringify(v === undefined ? null : v);
+        };
+        const tsOf = (c) => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
+
+        function showLogin(msg, showBtn) {
+            loginScreen.classList.remove('hidden');
+            loginMsg.textContent = msg;
+            loginBtn.classList.toggle('hidden', !showBtn);
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function pushToUi() {
+            const a = [...lists.activos].sort((x, y) => tsOf(x) - tsOf(y));
+            const h = [...lists.historial].sort((x, y) => tsOf(x) - tsOf(y));
+            window.setCloudData(a, h);
+        }
+
+        function listen(name) {
+            return onSnapshot(collection(db, name), (snap) => {
+                remote[name] = new Map();
+                lists[name] = snap.docs.map(d => {
+                    const data = d.data();
+                    remote[name].set(d.id, stable(data));
+                    return data;
+                });
+                pushToUi();
+            }, (err) => {
+                console.error(err);
+                showLogin('No tenés permiso para ver estos datos con esta cuenta.', true);
+            });
+        }
+
+        function stopListening() { unsubs.forEach(u => u()); unsubs = []; }
+
+        async function sync(active, history) {
+            const batch = writeBatch(db);
+            let ops = 0;
+            [['activos', active], ['historial', history]].forEach(([name, list]) => {
+                const ids = new Set();
+                list.forEach(item => {
+                    const id = String(item.id);
+                    ids.add(id);
+                    const clean = JSON.parse(JSON.stringify(item));
+                    if (remote[name].get(id) !== stable(clean)) {
+                        batch.set(doc(db, name, id), clean);
+                        ops++;
+                    }
+                });
+                remote[name].forEach((_, id) => {
+                    if (!ids.has(id)) { batch.delete(doc(db, name, id)); ops++; }
+                });
+            });
+            if (ops > 0) await batch.commit();
+        }
+
+        async function login() {
+            try {
+                loginBtn.classList.add('hidden');
+                loginMsg.textContent = 'Abriendo acceso con Google…';
+                await signInWithPopup(auth, new GoogleAuthProvider());
+            } catch (e) {
+                console.error(e);
+                showLogin('No se pudo iniciar sesión. Si el navegador bloqueó la ventana emergente, permitila e intentá de nuevo.', true);
+            }
+        }
+
+        async function logout() {
+            stopListening();
+            await signOut(auth);
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            stopListening();
+            if (!user) { showLogin('Iniciá sesión con tu cuenta de Google autorizada.', true); return; }
+            const email = (user.email || '').toLowerCase();
+            if (!ALLOWED.includes(email)) {
+                await signOut(auth);
+                showLogin('La cuenta ' + email + ' no está autorizada para entrar.', true);
+                return;
+            }
+            loginScreen.classList.add('hidden');
+            unsubs = [listen('activos'), listen('historial')];
+        });
+
+        window.cloudApi = { login, logout, sync };
     </script>
 </body>
 </html>
