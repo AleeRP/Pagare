@@ -620,8 +620,7 @@
             appId: "1:95928333880:web:7b1890dcf84691b08998cd"
         };
 
-        // Cuentas autorizadas (las mismas deben estar en las reglas de Firestore)
-        const ALLOWED = ["musicaquerida@gmail.com", "micaaranda387@gmail.com"];
+        // Las cuentas autorizadas NO están en este código: se definen solo en las reglas de Firestore (Firebase).
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -664,9 +663,13 @@
                     return data;
                 });
                 pushToUi();
-            }, (err) => {
+            }, async (err) => {
                 console.error(err);
-                showLogin('No tenés permiso para ver estos datos con esta cuenta.', true);
+                stopListening();
+                const mail = auth.currentUser && auth.currentUser.email ? auth.currentUser.email : 'esta cuenta';
+                try { await signOut(auth); } catch (e) {}
+                window.setCloudData([], []);
+                showLogin('La cuenta ' + mail + ' no tiene permiso para ver estos datos.', true);
             });
         }
 
@@ -712,12 +715,6 @@
         onAuthStateChanged(auth, async (user) => {
             stopListening();
             if (!user) { showLogin('Iniciá sesión con tu cuenta de Google autorizada.', true); return; }
-            const email = (user.email || '').toLowerCase();
-            if (!ALLOWED.includes(email)) {
-                await signOut(auth);
-                showLogin('La cuenta ' + email + ' no está autorizada para entrar.', true);
-                return;
-            }
             loginScreen.classList.add('hidden');
             unsubs = [listen('activos'), listen('historial')];
         });
