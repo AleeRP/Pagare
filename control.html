@@ -693,7 +693,6 @@
                     const saldoPendiente = Math.max(0, client.montoTotal - pagadoMonto);
                     totalPendingMoney += saldoPendiente;
 
-                    const pctCuota = ((1 / client.numCuotas) * 100).toFixed(1);
                     const isManual = client.tipo === 'manual';
                     const expanded = expandedIds.has(client.id);
 
@@ -702,7 +701,7 @@
                         const isPaid = i < client.cuotasPagadas;
                         boxesHtml += `
                             <button onclick="toggleCuota('${client.id}', ${i})" class="flex-1 py-2 px-1 rounded border text-center transition flex flex-col items-center justify-center gap-0.5 ${isPaid ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}">
-                                <span class="text-[9px] uppercase font-bold">Cuota ${i+1} (${pctCuota}%)</span>
+                                <span class="text-[9px] uppercase font-bold">Cuota ${i+1}</span>
                                 <span class="text-[11px] font-bold ${isPaid ? 'line-through text-emerald-600' : ''}">$${client.valorCuota.toLocaleString('es-AR')}</span>
                                 ${isManual ? `<span class="text-[9px] opacity-70">Vence ${dueDateStr(client, i)}</span>` : ''}
                                 <span class="text-[9px] font-semibold">${isPaid ? '✓ PAGADA' : 'PENDIENTE'}</span>
@@ -716,10 +715,11 @@
                         <div class="flex justify-between items-start ${expanded ? 'border-b border-slate-100 pb-2' : ''}">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-bold text-navy-900 text-sm">${esc(client.nombre)}</h3>
-                                ${expanded ? `<span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
+                                <span class="text-xs text-slate-500">${client.fechaInicio}</span>
+                                <span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
                                     Int: ${client.interesMensual}%
-                                </span>` : ''}
-                                <p class="text-xs text-slate-500 w-full mt-0.5">${(!isManual && expanded) ? `DNI: ${client.dni} • ` : ''}Fecha: ${client.fechaInicio}</p>
+                                </span>
+                                ${(!isManual && expanded) ? `<p class="text-xs text-slate-500 w-full mt-0.5">DNI: ${client.dni}</p>` : ''}
                                 ${(expanded && client.fechaHoraFirma) ? `<p class="text-[10px] text-slate-400 w-full mt-0.5">Creado y firmado: ${client.fechaHoraFirma}${client.dispositivo ? ' • ' + client.dispositivo : ''}</p>` : ''}
                             </div>
                             <div class="flex items-center gap-2">
@@ -754,7 +754,6 @@
                         </div>
 
                         <div>
-                            <p class="text-[11px] font-semibold text-slate-700 mb-1.5">Marcador de Pagos (${client.numCuotas} cuotas${isManual && FREC_PLURAL[client.frecuencia] ? ' ' + FREC_PLURAL[client.frecuencia] : ''}):</p>
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                                 ${boxesHtml}
                             </div>
