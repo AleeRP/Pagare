@@ -43,6 +43,10 @@
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
         }
+        /* Sin flechitas en los campos numéricos */
+        input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         /* El panel no se dibuja hasta que Firebase confirme que la cuenta tiene permiso */
         body:not(.cloud-ok) > header,
         body:not(.cloud-ok) > main {
@@ -88,7 +92,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-600 mb-1">Monto prestado ($)</label>
-                        <input type="number" inputmode="decimal" min="0" id="mMonto" placeholder="0" oninput="updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                        <input type="text" inputmode="numeric" autocomplete="off" id="mMonto" placeholder="0" oninput="formatMonto(this); updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-600 mb-1">Interés (%)</label>
@@ -534,8 +538,23 @@
         }
         function closeManualForm() { document.getElementById('manualModal').classList.add('hidden'); }
 
+        // Pone los puntos de miles mientras se escribe (1500000 -> 1.500.000)
+        function formatMonto(el) {
+            const caret = el.selectionStart;
+            const digitsBeforeCaret = el.value.slice(0, caret).replace(/\D/g, '').length;
+            const digits = el.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+            el.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            let pos = 0, seen = 0;
+            while (pos < el.value.length && seen < digitsBeforeCaret) {
+                if (/\d/.test(el.value[pos])) seen++;
+                pos++;
+            }
+            try { el.setSelectionRange(pos, pos); } catch (e) {}
+        }
+        const montoValue = () => Number(document.getElementById('mMonto').value.replace(/\D/g, '')) || 0;
+
         function updateManualPreview() {
-            const monto = Number(document.getElementById('mMonto').value);
+            const monto = montoValue();
             const interes = Number(document.getElementById('mInteres').value) || 0;
             const cuotas = parseInt(document.getElementById('mCuotas').value, 10);
             const box = document.getElementById('mPreview');
@@ -552,7 +571,7 @@
             const err = document.getElementById('mError');
             const fail = (m) => { err.textContent = m; err.classList.remove('hidden'); };
             const nombre = document.getElementById('mNombre').value.trim();
-            const monto = Number(document.getElementById('mMonto').value);
+            const monto = montoValue();
             const interesRaw = document.getElementById('mInteres').value;
             const interes = interesRaw === '' ? 0 : Number(interesRaw);
             const cuotas = parseInt(document.getElementById('mCuotas').value, 10);
@@ -697,9 +716,9 @@
                         <div class="flex justify-between items-start border-b border-slate-100 pb-2">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-bold text-navy-900 text-sm">${esc(client.nombre)}</h3>
-                                <span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
+                                ${(!isManual || expanded) ? `<span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
                                     Int: ${client.interesMensual}%
-                                </span>
+                                </span>` : ''}
                                 <p class="text-xs text-slate-500 w-full mt-0.5">${isManual ? '' : `DNI: ${client.dni} • `}Fecha: ${client.fechaInicio}</p>
                                 ${client.fechaHoraFirma ? `<p class="text-[10px] text-slate-400 w-full mt-0.5">Creado y firmado: ${client.fechaHoraFirma}${client.dispositivo ? ' • ' + client.dispositivo : ''}</p>` : ''}
                             </div>
