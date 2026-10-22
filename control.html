@@ -68,6 +68,61 @@
         </div>
     </div>
 
+
+    <!-- FORMULARIO MANUAL (cliente sin pagaré) -->
+    <div id="manualModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-md border border-slate-200 p-5 w-full max-w-md max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="font-bold text-navy-900 text-sm flex items-center gap-2">
+                    <i data-lucide="pencil-line" class="w-4 h-4 text-bordo-700"></i> Cliente sin pagaré
+                </h2>
+                <button onclick="closeManualForm()" class="text-slate-400 hover:text-slate-600 p-1" title="Cerrar">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre y apellido, o apodo</label>
+                    <input type="text" id="mNombre" placeholder="Ej: Juan Pérez" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Monto prestado ($)</label>
+                        <input type="number" inputmode="decimal" min="0" id="mMonto" placeholder="0" oninput="updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Interés (%)</label>
+                        <input type="number" inputmode="decimal" min="0" step="any" id="mInteres" placeholder="0" oninput="updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Cantidad de cuotas</label>
+                        <input type="number" inputmode="numeric" min="1" max="60" id="mCuotas" placeholder="1" oninput="updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Plazo de pagos</label>
+                        <select id="mFrecuencia" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none bg-white">
+                            <option value="semanal">Semanal</option>
+                            <option value="quincenal">Quincenal</option>
+                            <option value="mensual" selected>Mensual</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Fecha</label>
+                    <input type="date" id="mFecha" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                </div>
+                <p id="mPreview" class="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-2 text-center">Completá monto, interés y cuotas para ver el total.</p>
+                <p id="mError" class="hidden text-[11px] text-bordo-700 font-semibold"></p>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeManualForm()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold h-10 rounded-lg transition">Cancelar</button>
+                <button onclick="saveManualClient()" class="flex-1 bg-bordo-700 hover:bg-bordo-800 text-white text-xs font-semibold h-10 rounded-lg transition">Guardar cliente</button>
+            </div>
+        </div>
+    </div>
+
     <header class="bg-navy-950 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
         <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
             <div class="flex items-center gap-3">
@@ -81,10 +136,21 @@
             </div>
             <div class="flex items-center">
                 <input type="file" id="clientFileInput" accept="application/pdf,.txt,.json,.csv" class="hidden" onchange="handleClientFileSelect(event)">
-                <button onclick="document.getElementById('clientFileInput').click()" class="bg-bordo-700 hover:bg-bordo-800 text-white text-[10px] font-medium h-8 px-3 rounded-lg transition inline-flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap">
-                    <i data-lucide="upload-cloud" class="w-3 h-3 shrink-0"></i>
-                    <span class="leading-none self-center">Cargar cliente</span>
-                </button>
+                <div class="relative" id="addMenuWrap">
+                    <button onclick="toggleAddMenu(event)" class="bg-bordo-700 hover:bg-bordo-800 text-white text-[10px] font-medium h-8 px-3 rounded-lg transition inline-flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap">
+                        <i data-lucide="upload-cloud" class="w-3 h-3 shrink-0"></i>
+                        <span class="leading-none self-center">Cargar cliente</span>
+                        <i data-lucide="chevron-down" class="w-3 h-3 shrink-0"></i>
+                    </button>
+                    <div id="addMenu" class="hidden absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-50">
+                        <button onclick="closeAddMenu(); document.getElementById('clientFileInput').click()" class="w-full text-left px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5 text-bordo-700 shrink-0"></i> Con pagaré (PDF)
+                        </button>
+                        <button onclick="closeAddMenu(); openManualForm()" class="w-full text-left px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-t border-slate-100">
+                            <i data-lucide="pencil-line" class="w-3.5 h-3.5 text-bordo-700 shrink-0"></i> Sin pagaré (manual)
+                        </button>
+                    </div>
+                </div>
                 <button onclick="cloudApi.logout()" title="Cerrar sesión" class="ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
                     <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
                 </button>
@@ -441,6 +507,106 @@
             }
         }
 
+
+        // ===== CLIENTES MANUALES (sin pagaré) =====
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        const expandedIds = new Set();
+        const FREC_PLURAL = { semanal: 'semanales', quincenal: 'quincenales', mensual: 'mensuales' };
+
+        function toggleAddMenu(e) {
+            e.stopPropagation();
+            document.getElementById('addMenu').classList.toggle('hidden');
+        }
+        function closeAddMenu() { document.getElementById('addMenu').classList.add('hidden'); }
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#addMenuWrap')) closeAddMenu();
+        });
+
+        function openManualForm() {
+            ['mNombre', 'mMonto', 'mInteres', 'mCuotas'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('mFrecuencia').value = 'mensual';
+            const t = new Date();
+            document.getElementById('mFecha').value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+            document.getElementById('mError').classList.add('hidden');
+            updateManualPreview();
+            document.getElementById('manualModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function closeManualForm() { document.getElementById('manualModal').classList.add('hidden'); }
+
+        function updateManualPreview() {
+            const monto = Number(document.getElementById('mMonto').value);
+            const interes = Number(document.getElementById('mInteres').value) || 0;
+            const cuotas = parseInt(document.getElementById('mCuotas').value, 10);
+            const box = document.getElementById('mPreview');
+            if (monto > 0 && cuotas >= 1) {
+                const total = Math.round(monto * (1 + interes / 100));
+                const cuota = Math.round(total / cuotas);
+                box.textContent = `Total a devolver: $${total.toLocaleString('es-AR')} • Cuota: $${cuota.toLocaleString('es-AR')}`;
+            } else {
+                box.textContent = 'Completá monto, interés y cuotas para ver el total.';
+            }
+        }
+
+        function saveManualClient() {
+            const err = document.getElementById('mError');
+            const fail = (m) => { err.textContent = m; err.classList.remove('hidden'); };
+            const nombre = document.getElementById('mNombre').value.trim();
+            const monto = Number(document.getElementById('mMonto').value);
+            const interesRaw = document.getElementById('mInteres').value;
+            const interes = interesRaw === '' ? 0 : Number(interesRaw);
+            const cuotas = parseInt(document.getElementById('mCuotas').value, 10);
+            const frecuencia = document.getElementById('mFrecuencia').value;
+            const fechaIso = document.getElementById('mFecha').value;
+
+            if (!nombre) return fail('Escribí el nombre o apodo.');
+            if (!(monto > 0)) return fail('Ingresá un monto mayor a 0.');
+            if (!Number.isFinite(interes) || interes < 0) return fail('El interés no puede ser negativo.');
+            if (!Number.isInteger(cuotas) || cuotas < 1 || cuotas > 60) return fail('Las cuotas deben ser entre 1 y 60.');
+            if (!fechaIso) return fail('Elegí la fecha.');
+
+            const [y, m, d] = fechaIso.split('-');
+            const montoInicial = Math.round(monto);
+            const montoTotal = Math.round(montoInicial * (1 + interes / 100));
+            activeClients.unshift({
+                id: 'man_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                tipo: 'manual',
+                nombre,
+                dni: '',
+                montoInicial,
+                montoTotal,
+                numCuotas: cuotas,
+                valorCuota: Math.round(montoTotal / cuotas),
+                cuotasPagadas: 0,
+                fechaInicio: `${d}/${m}/${y}`,
+                interesMensual: interes,
+                frecuencia
+            });
+            closeManualForm();
+            saveDatabase();
+        }
+
+        function toggleExpand(id) {
+            if (expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id);
+            renderDashboard();
+        }
+
+        // Fecha de vencimiento de cada cuota (semanal +7 días, quincenal +15 días, mensual +1 mes)
+        function dueDateStr(client, i) {
+            const [d, m, y] = String(client.fechaInicio).split('/').map(Number);
+            if (!d || !m || !y) return '';
+            const n = i + 1;
+            let dt;
+            if (client.frecuencia === 'semanal') dt = new Date(y, m - 1, d + 7 * n);
+            else if (client.frecuencia === 'quincenal') dt = new Date(y, m - 1, d + 15 * n);
+            else {
+                dt = new Date(y, m - 1 + n, 1);
+                const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+                dt.setDate(Math.min(d, last));
+            }
+            return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
+        }
+
         function toggleCuota(clientId, index) {
             const client = activeClients.find(c => c.id === clientId);
             if (!client) return;
@@ -465,7 +631,7 @@
             const historyRecord = {
                 id: client.id,
                 nombre: client.nombre,
-                dni: client.dni,
+                dni: client.dni || '',
                 montoTotal: client.montoTotal,
                 numCuotas: client.numCuotas,
                 fechaInicio: client.fechaInicio,
@@ -509,6 +675,8 @@
                     totalPendingMoney += saldoPendiente;
 
                     const pctCuota = ((1 / client.numCuotas) * 100).toFixed(1);
+                    const isManual = client.tipo === 'manual';
+                    const expanded = expandedIds.has(client.id);
 
                     let boxesHtml = '';
                     for (let i = 0; i < client.numCuotas; i++) {
@@ -517,6 +685,7 @@
                             <button onclick="toggleCuota('${client.id}', ${i})" class="flex-1 py-2 px-1 rounded border text-center transition flex flex-col items-center justify-center gap-0.5 ${isPaid ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}">
                                 <span class="text-[9px] uppercase font-bold">Cuota ${i+1} (${pctCuota}%)</span>
                                 <span class="text-[11px] font-bold ${isPaid ? 'line-through text-emerald-600' : ''}">$${client.valorCuota.toLocaleString('es-AR')}</span>
+                                ${isManual ? `<span class="text-[9px] opacity-70">Vence ${dueDateStr(client, i)}</span>` : ''}
                                 <span class="text-[9px] font-semibold">${isPaid ? '✓ PAGADA' : 'PENDIENTE'}</span>
                             </button>
                         `;
@@ -527,14 +696,19 @@
                     card.innerHTML = `
                         <div class="flex justify-between items-start border-b border-slate-100 pb-2">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <h3 class="font-bold text-navy-900 text-sm">${client.nombre}</h3>
+                                <h3 class="font-bold text-navy-900 text-sm">${esc(client.nombre)}</h3>
                                 <span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
                                     Int: ${client.interesMensual}%
                                 </span>
-                                <p class="text-xs text-slate-500 w-full mt-0.5">DNI: ${client.dni} • Fecha: ${client.fechaInicio}</p>
+                                <p class="text-xs text-slate-500 w-full mt-0.5">${isManual ? '' : `DNI: ${client.dni} • `}Fecha: ${client.fechaInicio}</p>
                                 ${client.fechaHoraFirma ? `<p class="text-[10px] text-slate-400 w-full mt-0.5">Creado y firmado: ${client.fechaHoraFirma}${client.dispositivo ? ' • ' + client.dispositivo : ''}</p>` : ''}
                             </div>
                             <div class="flex items-center gap-2">
+                                ${isManual ? `
+                                    <button onclick="toggleExpand('${client.id}')" class="text-slate-400 hover:text-navy-900 p-1 rounded" title="${expanded ? 'Ocultar detalle' : 'Ver detalle'}">
+                                        <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4"></i>
+                                    </button>
+                                ` : ''}
                                 ${client.cuotasPagadas === client.numCuotas ? `
                                     <button onclick="moveToHistory('${client.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded transition flex items-center gap-1 shadow-sm">
                                         <i data-lucide="archive" class="w-3 h-3"></i> Finalizar
@@ -546,6 +720,7 @@
                             </div>
                         </div>
 
+                        <div class="${isManual && !expanded ? 'hidden' : ''} space-y-3">
                         <div class="grid grid-cols-3 gap-2 text-center bg-slate-50 p-2 rounded-lg border border-slate-100 text-xs">
                             <div>
                                 <span class="block text-[10px] text-slate-400">Prestado</span>
@@ -562,10 +737,11 @@
                         </div>
 
                         <div>
-                            <p class="text-[11px] font-semibold text-slate-700 mb-1.5">Marcador de Pagos (${client.numCuotas} cuotas):</p>
+                            <p class="text-[11px] font-semibold text-slate-700 mb-1.5">Marcador de Pagos (${client.numCuotas} cuotas${isManual && FREC_PLURAL[client.frecuencia] ? ' ' + FREC_PLURAL[client.frecuencia] : ''}):</p>
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                                 ${boxesHtml}
                             </div>
+                        </div>
                         </div>
                     `;
                     activeGrid.appendChild(card);
@@ -580,8 +756,8 @@
                     const row = document.createElement('tr');
                     row.className = "hover:bg-slate-50 transition";
                     row.innerHTML = `
-                        <td class="p-3 font-semibold text-navy-900">${h.nombre}</td>
-                        <td class="p-3">${h.dni}</td>
+                        <td class="p-3 font-semibold text-navy-900">${esc(h.nombre)}</td>
+                        <td class="p-3">${h.dni || '—'}</td>
                         <td class="p-3 font-semibold text-emerald-700">$${h.montoTotal.toLocaleString('es-AR')}</td>
                         <td class="p-3">${h.numCuotas} cuota(s)</td>
                         <td class="p-3 text-slate-500">${h.fechaInicio}</td>
