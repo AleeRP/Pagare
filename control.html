@@ -78,7 +78,7 @@
         <div class="bg-white rounded-xl shadow-md border border-slate-200 p-5 w-full max-w-md max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="font-bold text-navy-900 text-sm flex items-center gap-2">
-                    <i data-lucide="pencil-line" class="w-4 h-4 text-bordo-700"></i> Cliente sin pagaré
+                    <i data-lucide="pencil-line" class="w-4 h-4 text-bordo-700"></i> <span id="mTitle">Cliente sin pagaré</span>
                 </h2>
                 <button onclick="closeManualForm()" class="text-slate-400 hover:text-slate-600 p-1" title="Cerrar">
                     <i data-lucide="x" class="w-4 h-4"></i>
@@ -88,6 +88,10 @@
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre y apellido, o apodo</label>
                     <input type="text" id="mNombre" placeholder="Ej: Juan Pérez" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                </div>
+                <div id="mDniWrap" class="hidden">
+                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">DNI</label>
+                    <input type="text" id="mDni" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -104,7 +108,7 @@
                         <label class="block text-[11px] font-semibold text-slate-600 mb-1">Cantidad de cuotas</label>
                         <input type="number" inputmode="numeric" min="1" max="60" id="mCuotas" placeholder="1" oninput="updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
                     </div>
-                    <div>
+                    <div id="mFrecWrap">
                         <label class="block text-[11px] font-semibold text-slate-600 mb-1">Plazo de pagos</label>
                         <select id="mFrecuencia" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none bg-white">
                             <option value="semanal">Semanal</option>
@@ -122,7 +126,7 @@
             </div>
             <div class="flex gap-2 mt-4">
                 <button onclick="closeManualForm()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold h-10 rounded-lg transition">Cancelar</button>
-                <button onclick="saveManualClient()" class="flex-1 bg-bordo-700 hover:bg-bordo-800 text-white text-xs font-semibold h-10 rounded-lg transition">Guardar cliente</button>
+                <button onclick="saveManualClient()" id="mSaveBtn" class="flex-1 bg-bordo-700 hover:bg-bordo-800 text-white text-xs font-semibold h-10 rounded-lg transition">Guardar cliente</button>
             </div>
         </div>
     </div>
@@ -228,7 +232,7 @@
                 </h2>
             </div>
 
-            <div id="activeClientsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <div id="activeClientsGrid" class="flex gap-4 items-start">
                 <!-- Se llena dinámicamente -->
             </div>
 
@@ -526,11 +530,41 @@
             if (!e.target.closest('#addMenuWrap')) closeAddMenu();
         });
 
+        let editingId = null;
+
+        function setFormMode(editClient) {
+            const isPag = !!editClient && editClient.tipo !== 'manual';
+            document.getElementById('mTitle').textContent = editClient ? 'Editar cliente' : 'Cliente sin pagaré';
+            document.getElementById('mSaveBtn').textContent = editClient ? 'Guardar cambios' : 'Guardar cliente';
+            document.getElementById('mDniWrap').classList.toggle('hidden', !isPag);
+            document.getElementById('mFrecWrap').classList.toggle('hidden', isPag);
+        }
+
         function openManualForm() {
+            editingId = null;
+            setFormMode(null);
             ['mNombre', 'mMonto', 'mInteres', 'mCuotas'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('mFrecuencia').value = 'mensual';
             const t = new Date();
             document.getElementById('mFecha').value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+            document.getElementById('mError').classList.add('hidden');
+            updateManualPreview();
+            document.getElementById('manualModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function openEditForm(id) {
+            const cl = activeClients.find(x => x.id === id);
+            if (!cl) return;
+            editingId = id;
+            setFormMode(cl);
+            document.getElementById('mNombre').value = cl.nombre || '';
+            document.getElementById('mDni').value = cl.dni || '';
+            document.getElementById('mMonto').value = String(cl.montoInicial || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            document.getElementById('mInteres').value = cl.interesMensual ?? '';
+            document.getElementById('mCuotas').value = cl.numCuotas || '';
+            document.getElementById('mFrecuencia').value = cl.frecuencia || 'mensual';
+            const [d, m, y] = String(cl.fechaInicio).split('/');
+            document.getElementById('mFecha').value = (d && m && y) ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : '';
             document.getElementById('mError').classList.add('hidden');
             updateManualPreview();
             document.getElementById('manualModal').classList.remove('hidden');
@@ -587,6 +621,26 @@
             const [y, m, d] = fechaIso.split('-');
             const montoInicial = Math.round(monto);
             const montoTotal = Math.round(montoInicial * (1 + interes / 100));
+
+            if (editingId) {
+                const cl = activeClients.find(x => x.id === editingId);
+                if (cl) {
+                    cl.nombre = nombre;
+                    if (cl.tipo !== 'manual') cl.dni = document.getElementById('mDni').value.trim();
+                    else cl.frecuencia = frecuencia;
+                    cl.montoInicial = montoInicial;
+                    cl.montoTotal = montoTotal;
+                    cl.numCuotas = cuotas;
+                    cl.valorCuota = Math.round(montoTotal / cuotas);
+                    cl.cuotasPagadas = Math.min(cl.cuotasPagadas || 0, cuotas);
+                    cl.interesMensual = interes;
+                    cl.fechaInicio = `${d}/${m}/${y}`;
+                }
+                editingId = null;
+                closeManualForm();
+                saveDatabase();
+                return;
+            }
             activeClients.unshift({
                 id: 'man_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                 tipo: 'manual',
@@ -688,7 +742,15 @@
             } else {
                 emptyActive.classList.add('hidden');
                 const tsOf = c => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
-                [...activeClients].sort((a, b) => tsOf(b) - tsOf(a)).forEach(client => {
+                const colCount = window.matchMedia('(min-width: 768px)').matches ? 2 : 1;
+                const colEls = [];
+                for (let k = 0; k < colCount; k++) {
+                    const col = document.createElement('div');
+                    col.className = 'flex flex-col gap-4 flex-1 min-w-0';
+                    activeGrid.appendChild(col);
+                    colEls.push(col);
+                }
+                [...activeClients].sort((a, b) => tsOf(b) - tsOf(a)).forEach((client, idx) => {
                     const pagadoMonto = client.cuotasPagadas * client.valorCuota;
                     const saldoPendiente = Math.max(0, client.montoTotal - pagadoMonto);
                     totalPendingMoney += saldoPendiente;
@@ -716,13 +778,16 @@
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-bold text-navy-900 text-sm">${esc(client.nombre)}</h3>
                                 <span class="text-xs text-slate-500">${client.fechaInicio}</span>
-                                <span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
+                                ${expanded ? `<span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
                                     Int: ${client.interesMensual}%
-                                </span>
+                                </span>` : ''}
                                 ${(!isManual && expanded) ? `<p class="text-xs text-slate-500 w-full mt-0.5">DNI: ${client.dni}</p>` : ''}
                                 ${(expanded && client.fechaHoraFirma) ? `<p class="text-[10px] text-slate-400 w-full mt-0.5">Creado y firmado: ${client.fechaHoraFirma}${client.dispositivo ? ' • ' + client.dispositivo : ''}</p>` : ''}
                             </div>
                             <div class="flex items-center gap-2">
+                                <button onclick="openEditForm('${client.id}')" class="text-slate-400 hover:text-navy-900 p-1 rounded" title="Editar datos">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
                                 <button onclick="toggleExpand('${client.id}')" class="text-slate-400 hover:text-navy-900 p-1 rounded" title="${expanded ? 'Ocultar detalle' : 'Ver detalle'}">
                                     <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4"></i>
                                 </button>
@@ -760,7 +825,7 @@
                         </div>
                         </div>
                     `;
-                    activeGrid.appendChild(card);
+                    colEls[idx % colCount].appendChild(card);
                 });
             }
 
@@ -796,6 +861,7 @@
         }
 
         window.addEventListener('load', renderDashboard);
+        window.matchMedia('(min-width: 768px)').addEventListener('change', () => renderDashboard());
         setTimeout(() => {
             if (!window.cloudApi) {
                 document.getElementById('loginMsg').textContent = 'No se pudo conectar con la nube. Revisá tu conexión a internet y recargá la página.';
