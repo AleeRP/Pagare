@@ -43,6 +43,17 @@
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
         }
+        /* Punto rojo de cuota por vencer (parpadeo suave) */
+        .pulse-dot {
+            display: inline-block; width: 10px; height: 10px; border-radius: 9999px;
+            background: #dc2626; flex-shrink: 0;
+            animation: pulseSoft 2s ease-in-out infinite;
+        }
+        @keyframes pulseSoft {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+            50% { opacity: 0.45; box-shadow: 0 0 0 5px rgba(220, 38, 38, 0); }
+        }
+        @media (prefers-reduced-motion: reduce) { .pulse-dot { animation: none; } }
         /* Sin flechitas en los campos numéricos */
         input[type=number] { -moz-appearance: textfield; appearance: textfield; }
         input[type=number]::-webkit-outer-spin-button,
@@ -664,20 +675,43 @@
             renderDashboard();
         }
 
-        // Fecha de vencimiento de cada cuota (semanal +7 días, quincenal +15 días, mensual +1 mes)
-        function dueDateStr(client, i) {
+        // Fecha de vencimiento de cada cuota (semanal +7 días, quincenal +15 días, mensual +1 mes).
+        // Las fichas con pagaré no guardan plazo: se toman como mensuales.
+        function dueDateObj(client, i) {
             const [d, m, y] = String(client.fechaInicio).split('/').map(Number);
-            if (!d || !m || !y) return '';
+            if (!d || !m || !y) return null;
             const n = i + 1;
-            let dt;
-            if (client.frecuencia === 'semanal') dt = new Date(y, m - 1, d + 7 * n);
-            else if (client.frecuencia === 'quincenal') dt = new Date(y, m - 1, d + 15 * n);
-            else {
-                dt = new Date(y, m - 1 + n, 1);
-                const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
-                dt.setDate(Math.min(d, last));
-            }
-            return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
+            if (client.frecuencia === 'semanal') return new Date(y, m - 1, d + 7 * n);
+            if (client.frecuencia === 'quincenal') return new Date(y, m - 1, d + 15 * n);
+            const dt = new Date(y, m - 1 + n, 1);
+            const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+            dt.setDate(Math.min(d, last));
+            return dt;
+        }
+        function dueDateStr(client, i) {
+            const dt = dueDateObj(client, i);
+            return dt ? `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}` : '';
+        }
+
+        // Días que faltan para la próxima cuota sin pagar (negativo = vencida). null si ya está todo pagado.
+        function daysToNextDue(client) {
+            if ((client.cuotasPagadas || 0) >= client.numCuotas) return null;
+            const dt = dueDateObj(client, client.cuotasPagadas || 0);
+            if (!dt) return null;
+            const t = new Date();
+            const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+            return Math.round((dt - today) / 86400000);
+        }
+        // Prioridad de orden: 0 = vencida, 1 = vence en 5 días o menos, 2 = resto
+        function dueGroup(days) {
+            if (days === null) return 2;
+            if (days < 0) return 0;
+            return days <= 5 ? 1 : 2;
+        }
+        function dueTitle(days) {
+            if (days < 0) return `Cuota vencida hace ${-days} día${days === -1 ? '' : 's'}`;
+            if (days === 0) return 'La cuota vence hoy';
+            return `La cuota vence en ${days} día${days === 1 ? '' : 's'}`;
         }
 
         function toggleCuota(clientId, index) {
@@ -750,13 +784,21 @@
                     activeGrid.appendChild(col);
                     colEls.push(col);
                 }
-                [...activeClients].sort((a, b) => tsOf(b) - tsOf(a)).forEach((client, idx) => {
+                [...activeClients].sort((a, b) => {
+                    const da = daysToNextDue(a), db = daysToNextDue(b);
+                    const ga = dueGroup(da), gb = dueGroup(db);
+                    if (ga !== gb) return ga - gb;
+                    if (ga < 2) return da - db;          // más urgente primero
+                    return tsOf(b) - tsOf(a);            // resto: últimas cargadas primero
+                }).forEach((client, idx) => {
                     const pagadoMonto = client.cuotasPagadas * client.valorCuota;
                     const saldoPendiente = Math.max(0, client.montoTotal - pagadoMonto);
                     totalPendingMoney += saldoPendiente;
 
                     const isManual = client.tipo === 'manual';
                     const expanded = expandedIds.has(client.id);
+                    const daysLeft = daysToNextDue(client);
+                    const showDot = daysLeft !== null && daysLeft <= 3;
 
                     let boxesHtml = '';
                     for (let i = 0; i < client.numCuotas; i++) {
@@ -778,6 +820,7 @@
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-bold text-navy-900 text-sm">${esc(client.nombre)}</h3>
                                 <span class="text-xs text-slate-500">${client.fechaInicio}</span>
+                                ${showDot ? `<span class="pulse-dot" title="${dueTitle(daysLeft)}"></span>` : ''}
                                 ${expanded ? `<span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
                                     Int: ${client.interesMensual}%
                                 </span>` : ''}
@@ -861,6 +904,7 @@
         }
 
         window.addEventListener('load', renderDashboard);
+        setInterval(() => renderDashboard(), 30 * 60 * 1000);
         window.matchMedia('(min-width: 768px)').addEventListener('change', () => renderDashboard());
         setTimeout(() => {
             if (!window.cloudApi) {
