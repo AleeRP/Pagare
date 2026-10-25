@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de cobranza</title>
+    <!-- Ícono y nombre para accesos directos (pantalla de inicio / escritorio) -->
+    <meta name="theme-color" content="#0a0f1d">
+    <meta name="apple-mobile-web-app-title" content="Panel">
+    <meta name="application-name" content="Panel">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#0a0f1d'
+                        },
+                        bordo: {
+                            600: '#9f1239',
+                            700: '#881337',
+                            800: '#4c0519'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- OCR para PDF escaneados (se usa solo si el PDF no contiene texto seleccionable) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- PDF.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Punto rojo de cuota por vencer (parpadeo suave) */
+        .pulse-dot {
+            display: inline-block; width: 10px; height: 10px; border-radius: 9999px;
+            background: #dc2626; flex-shrink: 0;
+            animation: pulseSoft 2s ease-in-out infinite;
+        }
+        @keyframes pulseSoft {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+            50% { opacity: 0.45; box-shadow: 0 0 0 5px rgba(220, 38, 38, 0); }
+        }
+        @media (prefers-reduced-motion: reduce) { .pulse-dot { animation: none; } }
+        /* Sin flechitas en los campos numéricos */
+        input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        /* El panel no se dibuja hasta que Firebase confirme que la cuenta tiene permiso */
+        body:not(.cloud-ok) > header,
+        body:not(.cloud-ok) > main {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 pb-12">
+
+    <!-- PANTALLA DE ACCESO (cerradura) -->
+    <div id="loginScreen" class="fixed inset-0 z-[60] bg-navy-950 flex items-center justify-center p-6">
+        <div class="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl text-center space-y-4">
+            <div class="bg-bordo-700 text-white w-10 h-10 rounded-lg flex items-center justify-center mx-auto">
+                <i data-lucide="lock" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-navy-900 text-base">Ficha de cobranza</h2>
+                <p id="loginMsg" class="text-xs text-slate-500 mt-1">Conectando…</p>
+            </div>
+            <button id="loginBtn" onclick="cloudApi.login()" class="hidden w-full bg-bordo-700 hover:bg-bordo-800 text-white text-xs font-semibold h-10 rounded-lg transition">
+                Entrar con Google
+            </button>
+        </div>
+    </div>
+
+
+    <!-- FORMULARIO MANUAL (cliente sin pagaré) -->
+    <div id="manualModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-md border border-slate-200 p-5 w-full max-w-md max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="font-bold text-navy-900 text-sm flex items-center gap-2">
+                    <i data-lucide="pencil-line" class="w-4 h-4 text-bordo-700"></i> <span id="mTitle">Cliente sin pagaré</span>
+                </h2>
+                <button onclick="closeManualForm()" class="text-slate-400 hover:text-slate-600 p-1" title="Cerrar">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre y apellido, o apodo</label>
+                    <input type="text" id="mNombre" placeholder="Ej: Juan Pérez" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                </div>
+                <div id="mDniWrap" class="hidden">
+                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">DNI</label>
+                    <input type="text" id="mDni" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Monto prestado ($)</label>
+                        <input type="text" inputmode="numeric" autocomplete="off" id="mMonto" placeholder="0" oninput="formatMonto(this); updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Interés (%)</label>
+                        <input type="number" inputmode="decimal" min="0" step="any" id="mInteres" placeholder="0" oninput="updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Cantidad de cuotas</label>
+                        <input type="number" inputmode="numeric" min="1" max="60" id="mCuotas" placeholder="1" oninput="updateManualPreview()" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                    </div>
+                    <div id="mFrecWrap">
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Plazo de pagos</label>
+                        <select id="mFrecuencia" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none bg-white">
+                            <option value="semanal">Semanal</option>
+                            <option value="quincenal">Quincenal</option>
+                            <option value="mensual" selected>Mensual</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Fecha</label>
+                    <input type="date" id="mFecha" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                </div>
+                <p id="mPreview" class="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-2 text-center">Completá monto, interés y cuotas para ver el total.</p>
+                <p id="mError" class="hidden text-[11px] text-bordo-700 font-semibold"></p>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeManualForm()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold h-10 rounded-lg transition">Cancelar</button>
+                <button onclick="saveManualClient()" id="mSaveBtn" class="flex-1 bg-bordo-700 hover:bg-bordo-800 text-white text-xs font-semibold h-10 rounded-lg transition">Guardar cliente</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="bg-navy-950 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
+        <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
+            <div class="flex items-center gap-3">
+                <div class="bg-bordo-700 text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+                    <i data-lucide="folder-kanban" class="w-4 h-4"></i>
+                </div>
+                <div class="flex flex-col justify-center leading-tight">
+                    <h1 class="font-bold text-sm tracking-wide text-slate-100 leading-tight">Ficha de cobranza</h1>
+                    <p class="text-[10px] text-slate-400 leading-tight">Panel de Control & Historial de Clientes</p>
+                </div>
+            </div>
+            <div class="flex items-center">
+                <input type="file" id="clientFileInput" accept="application/pdf,.txt,.json,.csv" class="hidden" onchange="handleClientFileSelect(event)">
+                <div class="relative" id="addMenuWrap">
+                    <button onclick="toggleAddMenu(event)" class="bg-bordo-700 hover:bg-bordo-800 text-white text-[10px] font-medium h-8 px-3 rounded-lg transition inline-flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap">
+                        <i data-lucide="upload-cloud" class="w-3 h-3 shrink-0"></i>
+                        <span class="leading-none self-center">Cargar cliente</span>
+                        <i data-lucide="chevron-down" class="w-3 h-3 shrink-0"></i>
+                    </button>
+                    <div id="addMenu" class="hidden absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-50">
+                        <button onclick="closeAddMenu(); document.getElementById('clientFileInput').click()" class="w-full text-left px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5 text-bordo-700 shrink-0"></i> Con pagaré (PDF)
+                        </button>
+                        <button onclick="closeAddMenu(); openManualForm()" class="w-full text-left px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 border-t border-slate-100">
+                            <i data-lucide="pencil-line" class="w-3.5 h-3.5 text-bordo-700 shrink-0"></i> Sin pagaré (manual)
+                        </button>
+                    </div>
+                </div>
+                <button onclick="cloudApi.logout()" title="Cerrar sesión" class="ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 mt-6 space-y-8">
+
+        <div id="customAlertModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+                <div class="flex items-center gap-3 text-bordo-700">
+                    <i data-lucide="alert-circle" class="w-6 h-6"></i>
+                    <h3 class="font-bold text-navy-900 text-base" id="alertTitle">Atención</h3>
+                </div>
+                <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line" id="alertMessage">Mensaje de alerta</p>
+                <div class="flex justify-end pt-2">
+                    <button onclick="closeCustomAlert()" class="bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicador de procesamiento -->
+        <div id="loadingModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div class="bg-navy-900 text-white rounded-xl max-w-sm w-full p-6 shadow-2xl border border-slate-700 text-center space-y-4">
+                <div class="w-12 h-12 border-4 border-bordo-700 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <h3 class="font-bold text-sm">Leyendo Pagaré Digital...</h3>
+                <p class="text-xs text-slate-400">Extrayendo datos de cliente automáticamente.</p>
+            </div>
+        </div>
+
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-500 font-medium block">Clientes Activos</span>
+                    <span id="statActiveClients" class="text-2xl font-bold text-navy-900">0</span>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-slate-100 text-navy-900 flex items-center justify-center">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-500 font-medium block">Saldo Total Pendiente</span>
+                    <span id="statTotalPending" class="text-2xl font-bold text-bordo-700">$0</span>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-bordo-600/10 text-bordo-700 flex items-center justify-center">
+                    <i data-lucide="wallet" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-slate-500 font-medium block">Préstamos Finalizados</span>
+                    <span id="statHistoryCount" class="text-2xl font-bold text-emerald-700">0</span>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <button type="button" onclick="toggleProfitPanel()" class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between text-left w-full hover:border-slate-300 transition">
+                <div>
+                    <span id="statProfitLabel" class="text-xs text-slate-500 font-medium block">Ganancia del mes</span>
+                    <span id="statProfit" class="text-2xl font-bold text-emerald-700">$0</span>
+                    <span id="statProfitCount" class="text-[11px] text-slate-400 block">0 cuotas cobradas</span>
+                </div>
+                <div id="profitIconWrap" class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                </div>
+            </button>
+        </section>
+
+        <div id="profitPanel" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm px-4">
+            <div id="profitList"></div>
+        </div>
+
+        <section class="space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                <h2 class="text-base font-bold text-navy-900 flex items-center gap-2">
+                    <i data-lucide="clock" class="w-4 h-4 text-bordo-700"></i>
+                    Seguimiento
+                </h2>
+            </div>
+
+            <div id="activeClientsGrid" class="flex gap-4 items-start">
+                <!-- Se llena dinámicamente -->
+            </div>
+
+            <div id="emptyActiveState" class="bg-white rounded-xl border-2 border-dashed border-slate-200 p-10 text-center space-y-3">
+                <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                    <i data-lucide="user-check" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-sm font-bold text-navy-900">No hay clientes activos en este momento</h3>
+                <p class="text-xs text-slate-500 max-w-sm mx-auto">Usá el botón <span class="font-semibold text-slate-700">"Cargar cliente"</span> arriba para subir tu PDF y registrar automáticamente la ficha con sus datos exactos.</p>
+            </div>
+        </section>
+
+        <section class="space-y-4 pt-4 border-t border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                <h2 class="text-base font-bold text-navy-900 flex items-center gap-2">
+                    <i data-lucide="archive" class="w-4 h-4 text-emerald-700"></i>
+                    Historial
+                </h2>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-navy-900 text-white text-[11px] uppercase tracking-wider">
+                                <th class="p-3">Cliente</th>
+                                <th class="p-3">DNI</th>
+                                <th class="p-3">Monto Total</th>
+                                <th class="p-3">Cuotas</th>
+                                <th class="p-3">Fecha Inicio</th>
+                                <th class="p-3">Fecha Cancelación</th>
+                                <th class="p-3 text-right">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="divide-y divide-slate-100 text-xs text-slate-700">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="emptyHistoryState" class="p-8 text-center text-slate-400 text-xs">
+                    No hay clientes guardados en el historial de finalizados.
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        let activeClients = [];
+        let historyClients = [];
+
+        function showCustomAlert(title, message) {
+            document.getElementById('alertTitle').textContent = title;
+            document.getElementById('alertMessage').textContent = message;
+            document.getElementById('customAlertModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('customAlertModal').classList.add('hidden');
+        }
+
+        function showLoading(show) {
+            const modal = document.getElementById('loadingModal');
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
+        // Los datos viven en Firestore (nube). El módulo de Firebase (abajo) los entrega con setCloudData().
+        function setCloudData(active, history) {
+            activeClients = active;
+            historyClients = history;
+            renderDashboard();
+        }
+
+        function saveDatabase() {
+            renderDashboard();
+            if (!window.cloudApi) {
+                showCustomAlert("Sin conexión con la nube", "No se pudo guardar el cambio. Revisá tu conexión y recargá la página.");
+                return;
+            }
+            window.cloudApi.sync(activeClients, historyClients).catch(err => {
+                console.error(err);
+                showCustomAlert("No se pudo guardar", "El cambio no llegó a la nube. Revisá tu conexión e intentá de nuevo.\n" + (err && err.code ? "(" + err.code + ")" : ""));
+            });
+        }
+
+        async function handleClientFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                let extractedText = "";
+
+                if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                    if (!window.pdfjsLib) {
+                        throw new Error("No se pudo iniciar el lector de PDF. Revisá tu conexión a internet e intentá nuevamente.");
+                    }
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdfDoc = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    const pageTexts = [];
+
+                    for (let i = 1; i <= pdfDoc.numPages; i++) {
+                        const page = await pdfDoc.getPage(i);
+                        const content = await page.getTextContent();
+                        pageTexts.push(content.items.map(item => item.str).join(' '));
+                    }
+                    extractedText = pageTexts.join('\n').trim();
+
+                    // Si el PDF es una imagen escaneada, intentar OCR en sus páginas.
+                    if (extractedText.replace(/\s/g, '').length < 20 && window.Tesseract) {
+                        showLoading(true); // solo se muestra si hace falta OCR (lento)
+                        const ocrPages = [];
+                        for (let i = 1; i <= pdfDoc.numPages; i++) {
+                            const page = await pdfDoc.getPage(i);
+                            const viewport = page.getViewport({ scale: 2 });
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            canvas.width = viewport.width;
+                            canvas.height = viewport.height;
+                            await page.render({ canvasContext: context, viewport }).promise;
+                            const result = await Tesseract.recognize(canvas, 'spa');
+                            ocrPages.push(result.data.text || '');
+                            canvas.width = 0;
+                            canvas.height = 0;
+                        }
+                        extractedText = ocrPages.join('\n').trim();
+                    }
+                } else {
+                    extractedText = await file.text();
+                }
+
+                if (!extractedText || extractedText.trim().length === 0) {
+                    throw new Error("No se encontró texto legible en el archivo. Si es un PDF escaneado, probá con una imagen más nítida.");
+                }
+
+                const cleanText = extractedText.replace(/\s+/g, ' ').trim();
+
+                // 1) Lectura directa de los datos incrustados por index.html (100% confiable)
+                let embedded = null;
+                const mk = cleanText.replace(/\s+/g, '').match(/PAGAREDATA::([A-Za-z0-9+\/=]+)::END/);
+                if (mk) {
+                    try { embedded = JSON.parse(decodeURIComponent(escape(atob(mk[1])))); } catch (e) { embedded = null; }
+                }
+
+                const findMatch = (patterns, text = cleanText) => {
+                    for (const pattern of patterns) {
+                        const match = text.match(pattern);
+                        if (match && match[1]) return match[1].trim();
+                    }
+                    return '';
+                };
+                const parseMoney = (raw) => {
+                    if (!raw) return null;
+                    let value = raw.replace(/[^\d.,]/g, '');
+                    if (value.includes('.') && value.includes(',')) {
+                        value = value.replace(/\./g, '').replace(',', '.');
+                    } else if (value.includes(',')) {
+                        value = value.replace(',', '.');
+                    } else if (/^\d{1,3}(\.\d{3})+$/.test(value)) {
+                        value = value.replace(/\./g, '');
+                    }
+                    const n = Number(value);
+                    return Number.isFinite(n) && n > 0 ? n : null;
+                };
+
+                // 2) Respaldo: lectura por texto (PDFs viejos o escaneados). Se prioriza el bloque "Datos del Solicitante"
+                //    para no confundir el DNI del prestamista con el del solicitante.
+                const solicBlock = (cleanText.match(/Datos del Solicitante(.{0,300})/i) || [])[1] || '';
+                let nombreRaw, dniRaw, montoRaw, cuotasRaw, interesRaw, fechaRaw;
+
+                if (embedded) {
+                    nombreRaw = embedded.nombre;
+                    dniRaw = String(embedded.dni || '');
+                    montoRaw = String(embedded.montoInicial || '');
+                    cuotasRaw = String(embedded.numCuotas || '');
+                    interesRaw = String(embedded.interes ?? '');
+                    fechaRaw = embedded.fecha || '';
+                } else {
+                    nombreRaw = findMatch([
+                        /Nombre\s*:\s*(.+?)\s+(?:D\.?N\.?I\.?\s*:)/i
+                    ], solicBlock) || findMatch([
+                        /(?:Nombre(?:\s+Completo)?|Deudor|Cliente|Titular|Sr\.?|Sra\.?)\s*[:\-]?\s*([A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+(?:\s+[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+){0,5})(?=\s+(?:D\.?N\.?I\.?|Documento|Monto|Capital|Pr[ée]stamo|Plazo|Inter[eé]s|Cuotas|Fecha|Domicilio)|[,;.]|$)/i,
+                        /([A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-ZÁÉÍÓÚÜÑ]+){1,5})\s+(?:D\.?N\.?I\.?|Documento)/i
+                    ]);
+                    dniRaw = findMatch([
+                        /D\.?\s*N\.?\s*I\.?\s*:\s*([0-9]{1,2}(?:\.[0-9]{3}){2}|[0-9]{7,8})/i
+                    ], solicBlock) || findMatch([
+                        /(?:D\.?\s*N\.?\s*I\.?|Documento|Nro\.?\s*de?\s*documento)[^\d]{0,15}([0-9]{1,2}(?:\.[0-9]{3}){2}|[0-9]{7,8})/i,
+                        /\b([0-9]{2}\.[0-9]{3}\.[0-9]{3})\b/
+                    ]);
+                    montoRaw = findMatch([
+                        /la\s+cantidad\s+de\s*\$\s*([0-9][0-9.,]*)/i,
+                        /(?:Monto\s+(?:inicial|solicitado|prestado)?|Capital|Pr[ée]stamo|Importe\s+(?:solicitado|total)?|Valor\s+del\s+pr[ée]stamo)[^\d$]{0,20}\$?\s*([0-9][0-9.,]*)/i,
+                        /\$\s*([0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?|[0-9]{4,}(?:,[0-9]{1,2})?)/
+                    ]);
+                    cuotasRaw = findMatch([
+                        /en\s+([0-9]{1,2})\s+cuotas/i,
+                        /(?:Cantidad\s+de\s+cuotas|N[úu]mero\s+de\s+cuotas|Cuotas|Plazo)[^\d]{0,20}([0-9]{1,2})/i,
+                        /\b([0-9]{1,2})\s*(?:cuotas|pagos|mensualidades)\b/i
+                    ]);
+                    interesRaw = findMatch([
+                        /inter[eé]s\s+del\s+([0-9]+(?:[.,][0-9]+)?)\s*%/i,
+                        /(?:Inter[eé]s(?:\s+mensual)?|Tasa(?:\s+de\s+inter[eé]s)?)[^\d]{0,15}([0-9]+(?:[.,][0-9]+)?)\s*%/i,
+                        /([0-9]+(?:[.,][0-9]+)?)\s*%\s*(?:mensual|de\s+inter[eé]s)/i
+                    ]);
+                    fechaRaw = findMatch([
+                        /(?:Fecha(?:\s+de\s+(?:inicio|firma|emisi[oó]n))?|Firmado\s+el)[^\d]{0,15}([0-3]?\d[\/.-][01]?\d[\/.-]\d{4})/i,
+                        /\b([0-3]?\d[\/.-][01]?\d[\/.-]\d{4})\b/
+                    ]);
+                }
+
+                const nombre = nombreRaw ? nombreRaw.replace(/\s+/g, ' ').toUpperCase() : '';
+                const dni = dniRaw ? dniRaw.replace(/\./g, '') : '';
+                const montoInicial = parseMoney(montoRaw);
+                const numCuotasParsed = cuotasRaw ? parseInt(cuotasRaw, 10) : NaN;
+                const numCuotas = Number.isInteger(numCuotasParsed) && numCuotasParsed >= 1 && numCuotasParsed <= 60 ? numCuotasParsed : null;
+                const interesParsed = interesRaw ? Number(interesRaw.replace(',', '.')) : null;
+                const interesMensualPct = Number.isFinite(interesParsed) && interesParsed >= 0 ? interesParsed : null;
+                const fechaPagaré = fechaRaw ? fechaRaw.replace(/[.-]/g, '/') : '';
+
+                const missing = [];
+                if (!nombre) missing.push("nombre del cliente");
+                if (!dni) missing.push("DNI");
+                if (montoInicial === null) missing.push("monto inicial/prestado");
+                if (!numCuotas) missing.push("cantidad de cuotas");
+
+                if (missing.length) {
+                    const preview = cleanText.slice(0, 900);
+                    throw new Error(
+                        "Pude leer el archivo, pero no identifiqué con seguridad: " + missing.join(", ") +
+                        ". No cargué la ficha para evitar registrar datos incorrectos.\n\n" +
+                        "Revisá que el PDF tenga texto legible y que los campos estén identificados (Nombre, DNI, Monto y Cuotas).\n\n" +
+                        "Texto detectado (primeros caracteres):\n" + preview
+                    );
+                }
+
+                // Si el pagaré no informa interés, se toma 0 % y se indica en la confirmación.
+                const interesFinal = interesMensualPct === null ? 0 : interesMensualPct;
+                const montoTotal = Math.round(montoInicial * (1 + (interesFinal / 100)));
+                const valorCuota = Math.round(montoTotal / numCuotas);
+
+                // Evitar duplicados obvios al volver a cargar el mismo pagaré.
+                const duplicate = activeClients.some(c => String(c.dni).replace(/\D/g, '') === dni.replace(/\D/g, '') &&
+                    Number(c.montoInicial) === montoInicial && c.fechaInicio === (fechaPagaré || c.fechaInicio));
+                if (duplicate) {
+                    throw new Error("Ya existe una ficha activa con el mismo DNI y monto. No se creó un duplicado.");
+                }
+
+                const newClient = {
+                    id: 'pag_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                    nombre,
+                    dni,
+                    montoInicial,
+                    montoTotal,
+                    numCuotas,
+                    valorCuota,
+                    cuotasPagadas: 0,
+                    fechaInicio: fechaPagaré || new Date().toLocaleDateString('es-AR'),
+                    interesMensual: interesFinal,
+                    dispositivo: embedded ? (embedded.dispositivo || '') : '',
+                    fechaHoraFirma: embedded ? (embedded.fechaHora || '') : ''
+                };
+
+                activeClients.unshift(newClient); // el más reciente queda primero
+                saveDatabase();
+                // Sin cartel de confirmación: la ficha aparece directo en la lista.
+                // Solo se avisa si no se encontró el interés (se registró 0 %).
+                if (interesMensualPct === null) {
+                    showCustomAlert("Revisá el interés", `Se cargó a ${nombre}, pero no encontré la tasa de interés y se registró 0 %.`);
+                }
+            } catch (err) {
+                console.error("Error al procesar:", err);
+                showCustomAlert("No se pudo cargar la ficha automáticamente", err.message || "No se pudo interpretar correctamente el documento.");
+            } finally {
+                showLoading(false);
+                document.getElementById('clientFileInput').value = '';
+            }
+        }
+
+
+        // ===== CLIENTES MANUALES (sin pagaré) =====
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        const expandedIds = new Set();
+        const FREC_PLURAL = { semanal: 'semanales', quincenal: 'quincenales', mensual: 'mensuales' };
+
+        function toggleAddMenu(e) {
+            e.stopPropagation();
+            document.getElementById('addMenu').classList.toggle('hidden');
+        }
+        function closeAddMenu() { document.getElementById('addMenu').classList.add('hidden'); }
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#addMenuWrap')) closeAddMenu();
+        });
+
+        let editingId = null;
+
+        function setFormMode(editClient) {
+            const isPag = !!editClient && editClient.tipo !== 'manual';
+            document.getElementById('mTitle').textContent = editClient ? 'Editar cliente' : 'Cliente sin pagaré';
+            document.getElementById('mSaveBtn').textContent = editClient ? 'Guardar cambios' : 'Guardar cliente';
+            document.getElementById('mDniWrap').classList.toggle('hidden', !isPag);
+            document.getElementById('mFrecWrap').classList.toggle('hidden', isPag);
+        }
+
+        function openManualForm() {
+            editingId = null;
+            setFormMode(null);
+            ['mNombre', 'mMonto', 'mInteres', 'mCuotas'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('mFrecuencia').value = 'mensual';
+            const t = new Date();
+            document.getElementById('mFecha').value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+            document.getElementById('mError').classList.add('hidden');
+            updateManualPreview();
+            document.getElementById('manualModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function openEditForm(id) {
+            const cl = activeClients.find(x => x.id === id);
+            if (!cl) return;
+            editingId = id;
+            setFormMode(cl);
+            document.getElementById('mNombre').value = cl.nombre || '';
+            document.getElementById('mDni').value = cl.dni || '';
+            document.getElementById('mMonto').value = String(cl.montoInicial || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            document.getElementById('mInteres').value = cl.interesMensual ?? '';
+            document.getElementById('mCuotas').value = cl.numCuotas || '';
+            document.getElementById('mFrecuencia').value = cl.frecuencia || 'mensual';
+            const [d, m, y] = String(cl.fechaInicio).split('/');
+            document.getElementById('mFecha').value = (d && m && y) ? `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` : '';
+            document.getElementById('mError').classList.add('hidden');
+            updateManualPreview();
+            document.getElementById('manualModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function closeManualForm() { document.getElementById('manualModal').classList.add('hidden'); }
+
+        // Pone los puntos de miles mientras se escribe (1500000 -> 1.500.000)
+        function formatMonto(el) {
+            const caret = el.selectionStart;
+            const digitsBeforeCaret = el.value.slice(0, caret).replace(/\D/g, '').length;
+            const digits = el.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+            el.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            let pos = 0, seen = 0;
+            while (pos < el.value.length && seen < digitsBeforeCaret) {
+                if (/\d/.test(el.value[pos])) seen++;
+                pos++;
+            }
+            try { el.setSelectionRange(pos, pos); } catch (e) {}
+        }
+        const montoValue = () => Number(document.getElementById('mMonto').value.replace(/\D/g, '')) || 0;
+
+        function updateManualPreview() {
+            const monto = montoValue();
+            const interes = Number(document.getElementById('mInteres').value) || 0;
+            const cuotas = parseInt(document.getElementById('mCuotas').value, 10);
+            const box = document.getElementById('mPreview');
+            if (monto > 0 && cuotas >= 1) {
+                const total = Math.round(monto * (1 + interes / 100));
+                const cuota = Math.round(total / cuotas);
+                box.textContent = `Total a devolver: $${total.toLocaleString('es-AR')} • Cuota: $${cuota.toLocaleString('es-AR')}`;
+            } else {
+                box.textContent = 'Completá monto, interés y cuotas para ver el total.';
+            }
+        }
+
+        function saveManualClient() {
+            const err = document.getElementById('mError');
+            const fail = (m) => { err.textContent = m; err.classList.remove('hidden'); };
+            const nombre = document.getElementById('mNombre').value.trim();
+            const monto = montoValue();
+            const interesRaw = document.getElementById('mInteres').value;
+            const interes = interesRaw === '' ? 0 : Number(interesRaw);
+            const cuotas = parseInt(document.getElementById('mCuotas').value, 10);
+            const frecuencia = document.getElementById('mFrecuencia').value;
+            const fechaIso = document.getElementById('mFecha').value;
+
+            if (!nombre) return fail('Escribí el nombre o apodo.');
+            if (!(monto > 0)) return fail('Ingresá un monto mayor a 0.');
+            if (!Number.isFinite(interes) || interes < 0) return fail('El interés no puede ser negativo.');
+            if (!Number.isInteger(cuotas) || cuotas < 1 || cuotas > 60) return fail('Las cuotas deben ser entre 1 y 60.');
+            if (!fechaIso) return fail('Elegí la fecha.');
+
+            const [y, m, d] = fechaIso.split('-');
+            const montoInicial = Math.round(monto);
+            const montoTotal = Math.round(montoInicial * (1 + interes / 100));
+
+            if (editingId) {
+                const cl = activeClients.find(x => x.id === editingId);
+                if (cl) {
+                    cl.nombre = nombre;
+                    if (cl.tipo !== 'manual') cl.dni = document.getElementById('mDni').value.trim();
+                    else cl.frecuencia = frecuencia;
+                    cl.montoInicial = montoInicial;
+                    cl.montoTotal = montoTotal;
+                    cl.numCuotas = cuotas;
+                    cl.valorCuota = Math.round(montoTotal / cuotas);
+                    cl.cuotasPagadas = Math.min(cl.cuotasPagadas || 0, cuotas);
+                    cl.pagos = (cl.pagos || []).filter(p => p.n < cl.cuotasPagadas).map(p => ({ ...p, g: gananciaPorCuota(cl) }));
+                    cl.interesMensual = interes;
+                    cl.fechaInicio = `${d}/${m}/${y}`;
+                }
+                editingId = null;
+                closeManualForm();
+                saveDatabase();
+                return;
+            }
+            activeClients.unshift({
+                id: 'man_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                tipo: 'manual',
+                nombre,
+                dni: '',
+                montoInicial,
+                montoTotal,
+                numCuotas: cuotas,
+                valorCuota: Math.round(montoTotal / cuotas),
+                cuotasPagadas: 0,
+                pagos: [],
+                fechaInicio: `${d}/${m}/${y}`,
+                interesMensual: interes,
+                frecuencia
+            });
+            closeManualForm();
+            saveDatabase();
+        }
+
+        function toggleExpand(id) {
+            if (expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id);
+            renderDashboard();
+        }
+
+        // Fecha de vencimiento de cada cuota (semanal +7 días, quincenal +15 días, mensual +1 mes).
+        // Las fichas con pagaré no guardan plazo: se toman como mensuales.
+        function dueDateObj(client, i) {
+            const [d, m, y] = String(client.fechaInicio).split('/').map(Number);
+            if (!d || !m || !y) return null;
+            const n = i + 1;
+            if (client.frecuencia === 'semanal') return new Date(y, m - 1, d + 7 * n);
+            if (client.frecuencia === 'quincenal') return new Date(y, m - 1, d + 15 * n);
+            const dt = new Date(y, m - 1 + n, 1);
+            const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+            dt.setDate(Math.min(d, last));
+            return dt;
+        }
+        function dueDateStr(client, i) {
+            const dt = dueDateObj(client, i);
+            return dt ? `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}` : '';
+        }
+
+        // Días que faltan para la próxima cuota sin pagar (negativo = vencida). null si ya está todo pagado.
+        function daysToNextDue(client) {
+            if ((client.cuotasPagadas || 0) >= client.numCuotas) return null;
+            const dt = dueDateObj(client, client.cuotasPagadas || 0);
+            if (!dt) return null;
+            const t = new Date();
+            const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+            return Math.round((dt - today) / 86400000);
+        }
+        // Prioridad de orden: 0 = vencida, 1 = vence en 5 días o menos, 2 = resto
+        function dueGroup(days) {
+            if (days === null) return 2;
+            if (days < 0) return 0;
+            return days <= 5 ? 1 : 2;
+        }
+        function dueTitle(days) {
+            if (days < 0) return `Cuota vencida hace ${-days} día${days === -1 ? '' : 's'}`;
+            if (days === 0) return 'La cuota vence hoy';
+            return `La cuota vence en ${days} día${days === 1 ? '' : 's'}`;
+        }
+
+        // ===== GANANCIA MENSUAL =====
+        const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const fmtMoney = n => '$' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const ymKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        let profitOpen = false;
+
+        // Parte de interés que deja cada cuota (se reparte en partes iguales)
+        function gananciaPorCuota(cl) {
+            return Math.round(((cl.montoTotal || 0) - (cl.montoInicial || 0)) / (cl.numCuotas || 1));
+        }
+
+        // Cambia la cantidad de cuotas pagadas y registra (o quita) la ganancia de cada cuota con su mes de cobro
+        function setCuotasPagadas(cl, nuevo) {
+            const viejo = cl.cuotasPagadas || 0;
+            cl.pagos = (cl.pagos || []).filter(p => p.n < nuevo);
+            for (let n = viejo; n < nuevo; n++) {
+                if (!cl.pagos.some(p => p.n === n)) cl.pagos.push({ n, ym: ymKey(), g: gananciaPorCuota(cl) });
+            }
+            cl.cuotasPagadas = nuevo;
+        }
+
+        function computeMonthly() {
+            const map = {};
+            [...activeClients, ...historyClients].forEach(cl => (cl.pagos || []).forEach(p => {
+                const m = map[p.ym] || (map[p.ym] = { g: 0, n: 0 });
+                m.g += p.g || 0;
+                m.n += 1;
+            }));
+            return map;
+        }
+
+        function toggleProfitPanel() {
+            profitOpen = !profitOpen;
+            renderProfit();
+            lucide.createIcons();
+        }
+
+        function renderProfit() {
+            const map = computeMonthly();
+            const cur = ymKey();
+            const now = map[cur] || { g: 0, n: 0 };
+            document.getElementById('statProfitLabel').textContent = 'Ganancia de ' + MESES[new Date().getMonth()].toLowerCase();
+            document.getElementById('statProfit').textContent = fmtMoney(now.g);
+            document.getElementById('statProfitCount').textContent = `${now.n} cuota${now.n === 1 ? '' : 's'} cobrada${now.n === 1 ? '' : 's'}`;
+            document.getElementById('profitIconWrap').innerHTML = `<i data-lucide="${profitOpen ? 'chevron-up' : 'chevron-down'}" class="w-5 h-5"></i>`;
+
+            const panel = document.getElementById('profitPanel');
+            panel.classList.toggle('hidden', !profitOpen);
+            const prev = Object.keys(map).filter(k => k !== cur).sort().reverse();
+            document.getElementById('profitList').innerHTML = prev.length === 0
+                ? '<p class="text-xs text-slate-400 py-4">Todavía no hay meses anteriores.</p>'
+                : prev.map((k, i) => {
+                    const [y, m] = k.split('-').map(Number);
+                    const r = map[k];
+                    return `<div class="flex items-center justify-between py-3 ${i < prev.length - 1 ? 'border-b border-slate-100' : ''}">
+                        <div>
+                            <p class="text-sm font-semibold text-navy-900">${MESES[m - 1]} ${y}</p>
+                            <p class="text-[11px] text-slate-400">${r.n} cuota${r.n === 1 ? '' : 's'} cobrada${r.n === 1 ? '' : 's'}</p>
+                        </div>
+                        <p class="text-sm font-bold text-emerald-700">${fmtMoney(r.g)}</p>
+                    </div>`;
+                }).join('');
+        }
+
+        function toggleCuota(clientId, index) {
+            const client = activeClients.find(c => c.id === clientId);
+            if (!client) return;
+
+            if (index < client.cuotasPagadas) {
+                setCuotasPagadas(client, index);
+            } else {
+                setCuotasPagadas(client, index + 1);
+            }
+
+            saveDatabase();
+        }
+
+        function moveToHistory(clientId) {
+            const clientIndex = activeClients.findIndex(c => c.id === clientId);
+            if (clientIndex === -1) return;
+
+            const client = activeClients[clientIndex];
+            const now = new Date();
+            const fechaFinStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+
+            const historyRecord = {
+                id: client.id,
+                nombre: client.nombre,
+                dni: client.dni || '',
+                montoTotal: client.montoTotal,
+                numCuotas: client.numCuotas,
+                fechaInicio: client.fechaInicio,
+                fechaFin: fechaFinStr,
+                pagos: client.pagos || []
+            };
+
+            historyClients.push(historyRecord);
+            activeClients.splice(clientIndex, 1);
+            saveDatabase();
+        }
+
+        function deleteActiveClient(clientId) {
+            activeClients = activeClients.filter(c => c.id !== clientId);
+            saveDatabase();
+        }
+
+        function deleteHistoryClient(historyId) {
+            historyClients = historyClients.filter(h => h.id !== historyId);
+            saveDatabase();
+        }
+
+        function renderDashboard() {
+            const activeGrid = document.getElementById('activeClientsGrid');
+            const emptyActive = document.getElementById('emptyActiveState');
+            const historyBody = document.getElementById('historyTableBody');
+            const emptyHistory = document.getElementById('emptyHistoryState');
+
+            activeGrid.innerHTML = '';
+            historyBody.innerHTML = '';
+
+            let totalPendingMoney = 0;
+
+            if (activeClients.length === 0) {
+                emptyActive.classList.remove('hidden');
+            } else {
+                emptyActive.classList.add('hidden');
+                const tsOf = c => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
+                const colCount = window.matchMedia('(min-width: 768px)').matches ? 2 : 1;
+                const colEls = [];
+                for (let k = 0; k < colCount; k++) {
+                    const col = document.createElement('div');
+                    col.className = 'flex flex-col gap-4 flex-1 min-w-0';
+                    activeGrid.appendChild(col);
+                    colEls.push(col);
+                }
+                [...activeClients].sort((a, b) => {
+                    const da = daysToNextDue(a), db = daysToNextDue(b);
+                    const ga = dueGroup(da), gb = dueGroup(db);
+                    if (ga !== gb) return ga - gb;
+                    if (ga < 2) return da - db;          // más urgente primero
+                    return tsOf(b) - tsOf(a);            // resto: últimas cargadas primero
+                }).forEach((client, idx) => {
+                    const pagadoMonto = client.cuotasPagadas * client.valorCuota;
+                    const saldoPendiente = Math.max(0, client.montoTotal - pagadoMonto);
+                    totalPendingMoney += saldoPendiente;
+
+                    const isManual = client.tipo === 'manual';
+                    const expanded = expandedIds.has(client.id);
+                    const daysLeft = daysToNextDue(client);
+                    const showDot = daysLeft !== null && daysLeft <= 3;
+
+                    let boxesHtml = '';
+                    for (let i = 0; i < client.numCuotas; i++) {
+                        const isPaid = i < client.cuotasPagadas;
+                        boxesHtml += `
+                            <button onclick="toggleCuota('${client.id}', ${i})" class="flex-1 py-2 px-1 rounded border text-center transition flex flex-col items-center justify-center gap-0.5 ${isPaid ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}">
+                                <span class="text-[9px] uppercase font-bold">Cuota ${i+1}</span>
+                                <span class="text-[11px] font-bold ${isPaid ? 'line-through text-emerald-600' : ''}">$${client.valorCuota.toLocaleString('es-AR')}</span>
+                                ${isManual ? `<span class="text-[9px] opacity-70">Vence ${dueDateStr(client, i)}</span>` : ''}
+                                <span class="text-[9px] font-semibold">${isPaid ? '✓ PAGADA' : 'PENDIENTE'}</span>
+                            </button>
+                        `;
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = "bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3 relative " + (expanded ? "" : "cursor-pointer hover:border-slate-300 transition");
+                    card.innerHTML = `
+                        <div data-hdr="1" class="flex justify-between items-start ${expanded ? 'border-b border-slate-100 pb-2 cursor-pointer' : ''}">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="font-bold text-navy-900 text-sm">${esc(client.nombre)}</h3>
+                                <span class="text-xs text-slate-500">${client.fechaInicio}</span>
+                                ${showDot ? `<span class="pulse-dot" title="${dueTitle(daysLeft)}"></span>` : ''}
+                                ${expanded ? `<span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
+                                    Int: ${client.interesMensual}%
+                                </span>` : ''}
+                                ${(!isManual && expanded) ? `<p class="text-xs text-slate-500 w-full mt-0.5">DNI: ${client.dni}</p>` : ''}
+                                ${(expanded && client.fechaHoraFirma) ? `<p class="text-[10px] text-slate-400 w-full mt-0.5">Creado y firmado: ${client.fechaHoraFirma}${client.dispositivo ? ' • ' + client.dispositivo : ''}</p>` : ''}
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openEditForm('${client.id}')" class="text-slate-400 hover:text-navy-900 p-1 rounded" title="Editar datos">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                ${client.cuotasPagadas === client.numCuotas ? `
+                                    <button onclick="moveToHistory('${client.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded transition flex items-center gap-1 shadow-sm">
+                                        <i data-lucide="archive" class="w-3 h-3"></i> Finalizar
+                                    </button>
+                                ` : ''}
+                                <button onclick="deleteActiveClient('${client.id}')" class="text-slate-400 hover:text-bordo-700 p-1 rounded" title="Eliminar ficha">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="${!expanded ? 'hidden' : ''} space-y-3">
+                        <div class="grid grid-cols-3 gap-2 text-center bg-slate-50 p-2 rounded-lg border border-slate-100 text-xs">
+                            <div>
+                                <span class="block text-[10px] text-slate-400">Prestado</span>
+                                <strong class="text-slate-700">$${client.montoInicial.toLocaleString('es-AR')}</strong>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] text-slate-400">Total Devolución</span>
+                                <strong class="text-navy-900">$${client.montoTotal.toLocaleString('es-AR')}</strong>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] text-slate-400">Saldo Restante</span>
+                                <strong class="text-bordo-700">$${saldoPendiente.toLocaleString('es-AR')}</strong>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                ${boxesHtml}
+                            </div>
+                        </div>
+                        </div>
+                    `;
+                    // Plegada: tocar en cualquier parte la despliega. Desplegada: solo el encabezado la pliega.
+                    card.addEventListener('click', (ev) => {
+                        if (ev.target.closest('button')) return;
+                        if (!expandedIds.has(client.id) || ev.target.closest('[data-hdr]')) toggleExpand(client.id);
+                    });
+                    colEls[idx % colCount].appendChild(card);
+                });
+            }
+
+            if (historyClients.length === 0) {
+                emptyHistory.style.display = 'block';
+            } else {
+                emptyHistory.style.display = 'none';
+                historyClients.forEach(h => {
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-slate-50 transition";
+                    row.innerHTML = `
+                        <td class="p-3 font-semibold text-navy-900">${esc(h.nombre)}</td>
+                        <td class="p-3">${h.dni || '—'}</td>
+                        <td class="p-3 font-semibold text-emerald-700">$${h.montoTotal.toLocaleString('es-AR')}</td>
+                        <td class="p-3">${h.numCuotas} cuota(s)</td>
+                        <td class="p-3 text-slate-500">${h.fechaInicio}</td>
+                        <td class="p-3 text-slate-500">${h.fechaFin}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="deleteHistoryClient('${h.id}')" class="text-slate-400 hover:text-bordo-700">
+                                <i data-lucide="trash" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    `;
+                    historyBody.appendChild(row);
+                });
+            }
+
+            document.getElementById('statActiveClients').textContent = activeClients.length;
+            document.getElementById('statTotalPending').textContent = `$${totalPendingMoney.toLocaleString('es-AR')}`;
+            document.getElementById('statHistoryCount').textContent = historyClients.length;
+            renderProfit();
+
+            lucide.createIcons();
+        }
+
+        window.addEventListener('load', renderDashboard);
+        setInterval(() => renderDashboard(), 30 * 60 * 1000);
+        window.matchMedia('(min-width: 768px)').addEventListener('change', () => renderDashboard());
+        setTimeout(() => {
+            if (!window.cloudApi) {
+                document.getElementById('loginMsg').textContent = 'No se pudo conectar con la nube. Revisá tu conexión a internet y recargá la página.';
+            }
+        }, 10000);
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZn5e6jrwGfNtk0ov8HKyQ736OIzf5OHI",
+            authDomain: "fichaseguimiento.firebaseapp.com",
+            projectId: "fichaseguimiento",
+            storageBucket: "fichaseguimiento.firebasestorage.app",
+            messagingSenderId: "95928333880",
+            appId: "1:95928333880:web:7b1890dcf84691b08998cd"
+        };
+
+        // Las cuentas autorizadas NO están en este código: se definen solo en las reglas de Firestore (Firebase).
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const loginScreen = document.getElementById('loginScreen');
+        const loginMsg = document.getElementById('loginMsg');
+        const loginBtn = document.getElementById('loginBtn');
+
+        const remote = { activos: new Map(), historial: new Map() };
+        const lists = { activos: [], historial: [] };
+        let unsubs = [];
+
+        const stable = (v) => {
+            if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
+            if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
+            return JSON.stringify(v === undefined ? null : v);
+        };
+        const tsOf = (c) => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
+
+        function showLogin(msg, showBtn) {
+            document.body.classList.remove('cloud-ok');
+            loginScreen.classList.remove('hidden');
+            loginMsg.textContent = msg;
+            loginBtn.classList.toggle('hidden', !showBtn);
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function pushToUi() {
+            const a = [...lists.activos].sort((x, y) => tsOf(x) - tsOf(y));
+            const h = [...lists.historial].sort((x, y) => tsOf(x) - tsOf(y));
+            window.setCloudData(a, h);
+        }
+
+        const ready = { activos: false, historial: false };
+
+        function listen(name) {
+            return onSnapshot(collection(db, name), (snap) => {
+                remote[name] = new Map();
+                lists[name] = snap.docs.map(d => {
+                    const data = d.data();
+                    remote[name].set(d.id, stable(data));
+                    return data;
+                });
+                pushToUi();
+                ready[name] = true;
+                // El panel recién se muestra cuando Firebase confirmó el permiso en AMBAS colecciones
+                if (ready.activos && ready.historial) {
+                    document.body.classList.add('cloud-ok');
+                    loginScreen.classList.add('hidden');
+                }
+            }, async (err) => {
+                console.error(err);
+                stopListening();
+                const mail = auth.currentUser && auth.currentUser.email ? auth.currentUser.email : 'esta cuenta';
+                try { await signOut(auth); } catch (e) {}
+                clearData();
+                showLogin('La cuenta ' + mail + ' no tiene permiso para ver estos datos.', true);
+            });
+        }
+
+        function stopListening() { unsubs.forEach(u => u()); unsubs = []; }
+
+        // Borra de la memoria y de la pantalla cualquier ficha que haya quedado
+        function clearData() {
+            document.body.classList.remove('cloud-ok');
+            remote.activos = new Map(); remote.historial = new Map();
+            lists.activos = []; lists.historial = [];
+            window.setCloudData([], []);
+        }
+
+        async function sync(active, history) {
+            const batch = writeBatch(db);
+            let ops = 0;
+            [['activos', active], ['historial', history]].forEach(([name, list]) => {
+                const ids = new Set();
+                list.forEach(item => {
+                    const id = String(item.id);
+                    ids.add(id);
+                    const clean = JSON.parse(JSON.stringify(item));
+                    if (remote[name].get(id) !== stable(clean)) {
+                        batch.set(doc(db, name, id), clean);
+                        ops++;
+                    }
+                });
+                remote[name].forEach((_, id) => {
+                    if (!ids.has(id)) { batch.delete(doc(db, name, id)); ops++; }
+                });
+            });
+            if (ops > 0) await batch.commit();
+        }
+
+        async function login() {
+            try {
+                loginBtn.classList.add('hidden');
+                loginMsg.textContent = 'Abriendo acceso con Google…';
+                await signInWithPopup(auth, new GoogleAuthProvider());
+            } catch (e) {
+                console.error(e);
+                showLogin('No se pudo iniciar sesión. Si el navegador bloqueó la ventana emergente, permitila e intentá de nuevo.', true);
+            }
+        }
+
+        async function logout() {
+            stopListening();
+            clearData();
+            showLogin('Sesión cerrada.', true);
+            await signOut(auth);
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            stopListening();
+            clearData();
+            ready.activos = false; ready.historial = false;
+            if (!user) { showLogin('Iniciá sesión con tu cuenta de Google autorizada.', true); return; }
+            // La pantalla de acceso sigue tapando todo hasta que Firebase confirme el permiso
+            showLogin('Verificando acceso…', false);
+            unsubs = [listen('activos'), listen('historial')];
+        });
+
+        window.cloudApi = { login, logout, sync };
+    </script>
+</body>
+</html>
