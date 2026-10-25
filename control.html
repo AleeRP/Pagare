@@ -203,7 +203,7 @@
             </div>
         </div>
 
-        <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <span class="text-xs text-slate-500 font-medium block">Clientes Activos</span>
@@ -233,7 +233,22 @@
                     <i data-lucide="check-circle-2" class="w-5 h-5"></i>
                 </div>
             </div>
+
+            <button type="button" onclick="toggleProfitPanel()" class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between text-left w-full hover:border-slate-300 transition">
+                <div>
+                    <span id="statProfitLabel" class="text-xs text-slate-500 font-medium block">Ganancia del mes</span>
+                    <span id="statProfit" class="text-2xl font-bold text-emerald-700">$0</span>
+                    <span id="statProfitCount" class="text-[11px] text-slate-400 block">0 cuotas cobradas</span>
+                </div>
+                <div id="profitIconWrap" class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                </div>
+            </button>
         </section>
+
+        <div id="profitPanel" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm px-4">
+            <div id="profitList"></div>
+        </div>
 
         <section class="space-y-4">
             <div class="flex justify-between items-center border-b border-slate-200 pb-2">
@@ -644,6 +659,7 @@
                     cl.numCuotas = cuotas;
                     cl.valorCuota = Math.round(montoTotal / cuotas);
                     cl.cuotasPagadas = Math.min(cl.cuotasPagadas || 0, cuotas);
+                    cl.pagos = (cl.pagos || []).filter(p => p.n < cl.cuotasPagadas).map(p => ({ ...p, g: gananciaPorCuota(cl) }));
                     cl.interesMensual = interes;
                     cl.fechaInicio = `${d}/${m}/${y}`;
                 }
@@ -662,6 +678,7 @@
                 numCuotas: cuotas,
                 valorCuota: Math.round(montoTotal / cuotas),
                 cuotasPagadas: 0,
+                pagos: [],
                 fechaInicio: `${d}/${m}/${y}`,
                 interesMensual: interes,
                 frecuencia
@@ -714,14 +731,78 @@
             return `La cuota vence en ${days} día${days === 1 ? '' : 's'}`;
         }
 
+        // ===== GANANCIA MENSUAL =====
+        const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const fmtMoney = n => '$' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const ymKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        let profitOpen = false;
+
+        // Parte de interés que deja cada cuota (se reparte en partes iguales)
+        function gananciaPorCuota(cl) {
+            return Math.round(((cl.montoTotal || 0) - (cl.montoInicial || 0)) / (cl.numCuotas || 1));
+        }
+
+        // Cambia la cantidad de cuotas pagadas y registra (o quita) la ganancia de cada cuota con su mes de cobro
+        function setCuotasPagadas(cl, nuevo) {
+            const viejo = cl.cuotasPagadas || 0;
+            cl.pagos = (cl.pagos || []).filter(p => p.n < nuevo);
+            for (let n = viejo; n < nuevo; n++) {
+                if (!cl.pagos.some(p => p.n === n)) cl.pagos.push({ n, ym: ymKey(), g: gananciaPorCuota(cl) });
+            }
+            cl.cuotasPagadas = nuevo;
+        }
+
+        function computeMonthly() {
+            const map = {};
+            [...activeClients, ...historyClients].forEach(cl => (cl.pagos || []).forEach(p => {
+                const m = map[p.ym] || (map[p.ym] = { g: 0, n: 0 });
+                m.g += p.g || 0;
+                m.n += 1;
+            }));
+            return map;
+        }
+
+        function toggleProfitPanel() {
+            profitOpen = !profitOpen;
+            renderProfit();
+            lucide.createIcons();
+        }
+
+        function renderProfit() {
+            const map = computeMonthly();
+            const cur = ymKey();
+            const now = map[cur] || { g: 0, n: 0 };
+            document.getElementById('statProfitLabel').textContent = 'Ganancia de ' + MESES[new Date().getMonth()].toLowerCase();
+            document.getElementById('statProfit').textContent = fmtMoney(now.g);
+            document.getElementById('statProfitCount').textContent = `${now.n} cuota${now.n === 1 ? '' : 's'} cobrada${now.n === 1 ? '' : 's'}`;
+            document.getElementById('profitIconWrap').innerHTML = `<i data-lucide="${profitOpen ? 'chevron-up' : 'chevron-down'}" class="w-5 h-5"></i>`;
+
+            const panel = document.getElementById('profitPanel');
+            panel.classList.toggle('hidden', !profitOpen);
+            const prev = Object.keys(map).filter(k => k !== cur).sort().reverse();
+            document.getElementById('profitList').innerHTML = prev.length === 0
+                ? '<p class="text-xs text-slate-400 py-4">Todavía no hay meses anteriores.</p>'
+                : prev.map((k, i) => {
+                    const [y, m] = k.split('-').map(Number);
+                    const r = map[k];
+                    return `<div class="flex items-center justify-between py-3 ${i < prev.length - 1 ? 'border-b border-slate-100' : ''}">
+                        <div>
+                            <p class="text-sm font-semibold text-navy-900">${MESES[m - 1]} ${y}</p>
+                            <p class="text-[11px] text-slate-400">${r.n} cuota${r.n === 1 ? '' : 's'} cobrada${r.n === 1 ? '' : 's'}</p>
+                        </div>
+                        <p class="text-sm font-bold text-emerald-700">${fmtMoney(r.g)}</p>
+                    </div>`;
+                }).join('');
+        }
+
         function toggleCuota(clientId, index) {
             const client = activeClients.find(c => c.id === clientId);
             if (!client) return;
 
             if (index < client.cuotasPagadas) {
-                client.cuotasPagadas = index;
+                setCuotasPagadas(client, index);
             } else {
-                client.cuotasPagadas = index + 1;
+                setCuotasPagadas(client, index + 1);
             }
 
             saveDatabase();
@@ -742,7 +823,8 @@
                 montoTotal: client.montoTotal,
                 numCuotas: client.numCuotas,
                 fechaInicio: client.fechaInicio,
-                fechaFin: fechaFinStr
+                fechaFin: fechaFinStr,
+                pagos: client.pagos || []
             };
 
             historyClients.push(historyRecord);
@@ -814,9 +896,9 @@
                     }
 
                     const card = document.createElement('div');
-                    card.className = "bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3 relative";
+                    card.className = "bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3 relative " + (expanded ? "" : "cursor-pointer hover:border-slate-300 transition");
                     card.innerHTML = `
-                        <div class="flex justify-between items-start ${expanded ? 'border-b border-slate-100 pb-2' : ''}">
+                        <div data-hdr="1" class="flex justify-between items-start ${expanded ? 'border-b border-slate-100 pb-2 cursor-pointer' : ''}">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-bold text-navy-900 text-sm">${esc(client.nombre)}</h3>
                                 <span class="text-xs text-slate-500">${client.fechaInicio}</span>
@@ -830,9 +912,6 @@
                             <div class="flex items-center gap-2">
                                 <button onclick="openEditForm('${client.id}')" class="text-slate-400 hover:text-navy-900 p-1 rounded" title="Editar datos">
                                     <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                                </button>
-                                <button onclick="toggleExpand('${client.id}')" class="text-slate-400 hover:text-navy-900 p-1 rounded" title="${expanded ? 'Ocultar detalle' : 'Ver detalle'}">
-                                    <i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4"></i>
                                 </button>
                                 ${client.cuotasPagadas === client.numCuotas ? `
                                     <button onclick="moveToHistory('${client.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded transition flex items-center gap-1 shadow-sm">
@@ -868,6 +947,11 @@
                         </div>
                         </div>
                     `;
+                    // Plegada: tocar en cualquier parte la despliega. Desplegada: solo el encabezado la pliega.
+                    card.addEventListener('click', (ev) => {
+                        if (ev.target.closest('button')) return;
+                        if (!expandedIds.has(client.id) || ev.target.closest('[data-hdr]')) toggleExpand(client.id);
+                    });
                     colEls[idx % colCount].appendChild(card);
                 });
             }
@@ -899,6 +983,7 @@
             document.getElementById('statActiveClients').textContent = activeClients.length;
             document.getElementById('statTotalPending').textContent = `$${totalPendingMoney.toLocaleString('es-AR')}`;
             document.getElementById('statHistoryCount').textContent = historyClients.length;
+            renderProfit();
 
             lucide.createIcons();
         }
