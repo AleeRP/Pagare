@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ficha de cobranza</title>
+    <script>
+        // Tema: sigue al sistema, salvo que hayas elegido uno con el botón de sol/luna
+        (function () {
+            try {
+                var t = localStorage.getItem('tema');
+                var dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.classList.toggle('dark', dark);
+            } catch (e) {}
+        })();
+    </script>
     <!-- Ícono y nombre para accesos directos (pantalla de inicio / escritorio) -->
     <meta name="theme-color" content="#0a0f1d">
     <meta name="apple-mobile-web-app-title" content="Panel">
@@ -50,6 +60,39 @@
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
         }
+        /* ===== MODO OSCURO ===== */
+        html.dark { color-scheme: dark; }
+        html.dark body { background-color: #0b1120; color: #d5dcea; }
+        html.dark .bg-white { background-color: #131c31; }
+        html.dark .bg-slate-50 { background-color: #0f1729; }
+        html.dark .bg-slate-100 { background-color: #1b2540; }
+        html.dark .hover\:bg-slate-50:hover { background-color: #18233d; }
+        html.dark .hover\:bg-slate-100:hover { background-color: #202c4a; }
+        html.dark .hover\:bg-slate-200:hover { background-color: #2a3858; }
+        html.dark .border-slate-100 { border-color: #1e2a44; }
+        html.dark .border-slate-200 { border-color: #25324f; }
+        html.dark .border-slate-300 { border-color: #33415f; }
+        html.dark .hover\:border-slate-300:hover { border-color: #3f5075; }
+        html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1e2a44; }
+        html.dark .text-navy-900, html.dark .hover\:text-navy-900:hover { color: #e8edf7; }
+        html.dark .text-slate-800, html.dark .text-slate-700 { color: #d5dcea; }
+        html.dark .text-slate-600 { color: #b5bfd3; }
+        html.dark .text-slate-500 { color: #94a0b8; }
+        html.dark .text-slate-400 { color: #7d89a3; }
+        html.dark .hover\:text-slate-600:hover { color: #b5bfd3; }
+        html.dark .text-bordo-700, html.dark .hover\:text-bordo-700:hover { color: #fda4af; }
+        html.dark .text-emerald-700 { color: #34d399; }
+        html.dark .text-emerald-800, html.dark .text-emerald-600 { color: #6ee7b7; }
+        html.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.18); }
+        html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12); }
+        html.dark .border-emerald-300 { border-color: rgba(52, 211, 153, 0.45); }
+        html.dark .bg-bordo-700\/10, html.dark .bg-bordo-600\/10 { background-color: rgba(251, 113, 133, 0.14); }
+        html.dark .border-bordo-600\/20 { border-color: rgba(251, 113, 133, 0.3); }
+        html.dark .bg-navy-900 { background-color: #223052; }
+        html.dark .hover\:bg-navy-800:hover { background-color: #2c3d66; }
+        html.dark input, html.dark select, html.dark textarea { background-color: #0f1729; color: #e8edf7; }
+        html.dark input::placeholder, html.dark textarea::placeholder { color: #64718c; }
+        html.dark .pulse-dot { background: #ef4444; }
         /* Punto rojo de cuota por vencer (parpadeo suave) */
         .pulse-dot {
             display: inline-block; width: 10px; height: 10px; border-radius: 9999px;
@@ -177,6 +220,9 @@
                         </button>
                     </div>
                 </div>
+                <button id="themeBtn" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" class="ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
+                    <i data-lucide="moon" class="w-3.5 h-3.5"></i>
+                </button>
                 <button onclick="cloudApi.logout()" title="Cerrar sesión" class="ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
                     <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
                 </button>
@@ -737,6 +783,32 @@
             if (days === 0) return 'La cuota vence hoy';
             return `La cuota vence en ${days} día${days === 1 ? '' : 's'}`;
         }
+
+        // ===== TEMA CLARO / OSCURO =====
+        function updateThemeIcon() {
+            const dark = document.documentElement.classList.contains('dark');
+            const btn = document.getElementById('themeBtn');
+            if (!btn) return;
+            btn.innerHTML = `<i data-lucide="${dark ? 'sun' : 'moon'}" class="w-3.5 h-3.5"></i>`;
+            btn.title = dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+            lucide.createIcons();
+        }
+        function toggleTheme() {
+            const dark = !document.documentElement.classList.contains('dark');
+            document.documentElement.classList.toggle('dark', dark);
+            try { localStorage.setItem('tema', dark ? 'dark' : 'light'); } catch (e) {}
+            updateThemeIcon();
+        }
+        // Si no elegiste un tema con el botón, acompaña los cambios del sistema
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            let saved = null;
+            try { saved = localStorage.getItem('tema'); } catch (err) {}
+            if (!saved) {
+                document.documentElement.classList.toggle('dark', e.matches);
+                updateThemeIcon();
+            }
+        });
+        window.addEventListener('load', updateThemeIcon);
 
         // ===== GANANCIA MENSUAL =====
         const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
