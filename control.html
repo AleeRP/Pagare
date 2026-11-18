@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+html_code = '''<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -66,30 +66,32 @@
         html.dark .bg-white { background-color: #131c31; }
         html.dark .bg-slate-50 { background-color: #0f1729; }
         html.dark .bg-slate-100 { background-color: #1b2540; }
-        html.dark .hover\:bg-slate-50:hover { background-color: #18233d; }
-        html.dark .hover\:bg-slate-100:hover { background-color: #202c4a; }
-        html.dark .hover\:bg-slate-200:hover { background-color: #2a3858; }
+        html.dark .hover\\:bg-slate-50:hover { background-color: #18233d; }
+        html.dark .hover\\:bg-slate-100:hover { background-color: #202c4a; }
+        html.dark .hover\\:bg-slate-200:hover { background-color: #2a3858; }
         html.dark .border-slate-100 { border-color: #1e2a44; }
         html.dark .border-slate-200 { border-color: #25324f; }
         html.dark .border-slate-300 { border-color: #33415f; }
-        html.dark .hover\:border-slate-300:hover { border-color: #3f5075; }
+        html.dark .hover\\:border-slate-300:hover { border-color: #3f5075; }
         html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1e2a44; }
-        html.dark .text-navy-900, html.dark .hover\:text-navy-900:hover { color: #e8edf7; }
+        html.dark .text-navy-900, html.dark .hover\\:text-navy-900:hover { color: #e8edf7; }
         html.dark .text-slate-800, html.dark .text-slate-700 { color: #d5dcea; }
         html.dark .text-slate-600 { color: #b5bfd3; }
         html.dark .text-slate-500 { color: #94a0b8; }
         html.dark .text-slate-400 { color: #7d89a3; }
-        html.dark .hover\:text-slate-600:hover { color: #b5bfd3; }
-        html.dark .text-bordo-700, html.dark .hover\:text-bordo-700:hover { color: #fda4af; }
+        html.dark .hover\\:text-slate-600:hover { color: #b5bfd3; }
+        html.dark .text-bordo-700, html.dark .hover\\:text-bordo-700:hover { color: #fda4af; }
         html.dark .text-emerald-700 { color: #34d399; }
         html.dark .text-emerald-800, html.dark .text-emerald-600 { color: #6ee7b7; }
         html.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.18); }
         html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12); }
+        html.dark .bg-emerald-50\\/40 { background-color: rgba(16, 185, 129, 0.10); }
         html.dark .border-emerald-300 { border-color: rgba(52, 211, 153, 0.45); }
-        html.dark .bg-bordo-700\/10, html.dark .bg-bordo-600\/10 { background-color: rgba(251, 113, 133, 0.14); }
-        html.dark .border-bordo-600\/20 { border-color: rgba(251, 113, 133, 0.3); }
+        html.dark .border-emerald-400 { border-color: rgba(52, 211, 153, 0.55); }
+        html.dark .bg-bordo-700\\/10, html.dark .bg-bordo-600\\/10 { background-color: rgba(251, 113, 133, 0.14); }
+        html.dark .border-bordo-600\\/20 { border-color: rgba(251, 113, 133, 0.3); }
         html.dark .bg-navy-900 { background-color: #223052; }
-        html.dark .hover\:bg-navy-800:hover { background-color: #2c3d66; }
+        html.dark .hover\\:bg-navy-800:hover { background-color: #2c3d66; }
         html.dark input, html.dark select, html.dark textarea { background-color: #0f1729; color: #e8edf7; }
         html.dark input::placeholder, html.dark textarea::placeholder { color: #64718c; }
         html.dark .pulse-dot { background: #ef4444; }
@@ -113,6 +115,22 @@
         body:not(.cloud-ok) > main {
             display: none !important;
         }
+        /* Tooltip en Historial */
+        .hist-tooltip {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(4px);
+            transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+        }
+        .hist-tooltip.top-mode {
+            transform: translateY(-4px);
+        }
+        .hist-trigger:hover .hist-tooltip,
+        .hist-trigger.active .hist-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body class="min-h-screen text-slate-800 pb-12">
@@ -134,7 +152,7 @@
     </div>
 
 
-    <!-- FORMULARIO MANUAL (cliente sin pagaré) -->
+    <!-- FORMULARIO MANUAL / EDICIÓN -->
     <div id="manualModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-md border border-slate-200 p-5 w-full max-w-md max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
@@ -150,9 +168,15 @@
                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre y apellido, o apodo</label>
                     <input type="text" id="mNombre" placeholder="Ej: Juan Pérez" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
                 </div>
-                <div id="mDniWrap" class="hidden">
-                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">DNI</label>
-                    <input type="text" id="mDni" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                <div class="grid grid-cols-2 gap-3">
+                    <div id="mDniWrap">
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">DNI <span class="font-normal text-slate-400">(opcional)</span></label>
+                        <input type="text" inputmode="numeric" id="mDni" placeholder="Ej: 38.456.789" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                    </div>
+                    <div id="mTelWrap">
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Celular <span class="font-normal text-slate-400">(opcional)</span></label>
+                        <input type="tel" inputmode="tel" id="mTelefono" placeholder="Ej: 387 512-3456" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none">
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -193,20 +217,20 @@
     </div>
 
     <header class="bg-navy-950 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
-        <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
-            <div class="flex items-center gap-3">
+        <div class="max-w-6xl mx-auto px-3 sm:px-4 flex items-center justify-between h-14 gap-2">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
                 <div class="bg-bordo-700 text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
                     <i data-lucide="folder-kanban" class="w-4 h-4"></i>
                 </div>
-                <div class="flex flex-col justify-center leading-tight">
-                    <h1 class="font-bold text-sm tracking-wide text-slate-100 leading-tight">Ficha de cobranza</h1>
-                    <p class="text-[10px] text-slate-400 leading-tight">Panel de Control & Historial de Clientes</p>
+                <div class="min-w-0 flex-1">
+                    <h1 class="font-bold text-sm tracking-wide text-slate-100 leading-tight truncate text-left">Ficha de cobranza</h1>
+                    <p class="text-[10px] text-slate-400 leading-tight truncate text-left mt-0.5">Panel de Control & Historial de Clientes</p>
                 </div>
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center shrink-0">
                 <input type="file" id="clientFileInput" accept="application/pdf,.txt,.json,.csv" class="hidden" onchange="handleClientFileSelect(event)">
                 <div class="relative" id="addMenuWrap">
-                    <button onclick="toggleAddMenu(event)" class="bg-bordo-700 hover:bg-bordo-800 text-white text-[10px] font-medium h-8 px-3 rounded-lg transition inline-flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap">
+                    <button onclick="toggleAddMenu(event)" class="bg-bordo-700 hover:bg-bordo-800 text-white text-[10px] font-medium h-8 px-2.5 sm:px-3 rounded-lg transition inline-flex items-center justify-center gap-1 sm:gap-1.5 shadow-sm whitespace-nowrap">
                         <i data-lucide="upload-cloud" class="w-3 h-3 shrink-0"></i>
                         <span class="leading-none self-center">Cargar cliente</span>
                         <i data-lucide="chevron-down" class="w-3 h-3 shrink-0"></i>
@@ -220,10 +244,10 @@
                         </button>
                     </div>
                 </div>
-                <button id="themeBtn" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" class="ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
+                <button id="themeBtn" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" class="ml-1.5 sm:ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
                     <i data-lucide="moon" class="w-3.5 h-3.5"></i>
                 </button>
-                <button onclick="cloudApi.logout()" title="Cerrar sesión" class="ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
+                <button onclick="cloudApi.logout()" title="Cerrar sesión" class="ml-1.5 sm:ml-2 bg-navy-800 hover:bg-slate-700 text-slate-300 h-8 w-8 rounded-lg transition inline-flex items-center justify-center shrink-0">
                     <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
                 </button>
             </div>
@@ -324,36 +348,37 @@
             </div>
         </section>
 
-        <section class="space-y-4 pt-4 border-t border-slate-200">
-            <div class="flex justify-between items-center border-b border-slate-200 pb-2">
-                <h2 class="text-base font-bold text-navy-900 flex items-center gap-2">
-                    <i data-lucide="archive" class="w-4 h-4 text-emerald-700"></i>
-                    Historial
-                </h2>
-            </div>
+        <section class="pt-4 border-t border-slate-200">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
+                <button type="button" onclick="toggleHistoryPanel()" class="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-slate-50 transition rounded-xl">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="archive" class="w-4 h-4 text-emerald-700"></i>
+                        <h2 class="text-base font-bold text-navy-900">Historial</h2>
+                    </div>
+                    <div id="historyChevronWrap" class="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </div>
+                </button>
 
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-navy-900 text-white text-[11px] uppercase tracking-wider">
-                                <th class="p-3">Cliente</th>
-                                <th class="p-3">DNI</th>
-                                <th class="p-3">Monto Total</th>
-                                <th class="p-3">Cuotas</th>
-                                <th class="p-3">Fecha Inicio</th>
-                                <th class="p-3">Fecha Cancelación</th>
-                                <th class="p-3 text-right">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historyTableBody" class="divide-y divide-slate-100 text-xs text-slate-700">
-                            <!-- Se llena dinámicamente -->
-                        </tbody>
-                    </table>
-                </div>
+                <div id="historyPanelBody" class="hidden border-t border-slate-100">
+                    <div class="overflow-x-auto sm:overflow-visible">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-navy-900 text-white text-[11px] uppercase tracking-wider">
+                                    <th class="p-3">Cliente</th>
+                                    <th class="p-3">Inicio / Cancelación</th>
+                                    <th class="p-3 w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody" class="divide-y divide-slate-100 text-xs text-slate-700">
+                                <!-- Se llena dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
 
-                <div id="emptyHistoryState" class="p-8 text-center text-slate-400 text-xs">
-                    No hay clientes guardados en el historial de finalizados.
+                    <div id="emptyHistoryState" class="p-8 text-center text-slate-400 text-xs">
+                        No hay clientes guardados en el historial de finalizados.
+                    </div>
                 </div>
             </div>
         </section>
@@ -364,6 +389,16 @@
 
         let activeClients = [];
         let historyClients = [];
+        let historyOpen = false;
+
+        function toggleHistoryPanel() {
+            historyOpen = !historyOpen;
+            const body = document.getElementById('historyPanelBody');
+            const chevronWrap = document.getElementById('historyChevronWrap');
+            body.classList.toggle('hidden', !historyOpen);
+            chevronWrap.innerHTML = `<i data-lucide="${historyOpen ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4"></i>`;
+            lucide.createIcons();
+        }
 
         function showCustomAlert(title, message) {
             document.getElementById('alertTitle').textContent = title;
@@ -397,7 +432,7 @@
             }
             window.cloudApi.sync(activeClients, historyClients).catch(err => {
                 console.error(err);
-                showCustomAlert("No se pudo guardar", "El cambio no llegó a la nube. Revisá tu conexión e intentá de nuevo.\n" + (err && err.code ? "(" + err.code + ")" : ""));
+                showCustomAlert("No se pudo guardar", "El cambio no llegó a la nube. Revisá tu conexión e intentá de nuevo.\\n" + (err && err.code ? "(" + err.code + ")" : ""));
             });
         }
 
@@ -421,13 +456,13 @@
                         const content = await page.getTextContent();
                         pageTexts.push(content.items.map(item => item.str).join(' '));
                     }
-                    extractedText = pageTexts.join('\n').trim();
+                    extractedText = pageTexts.join('\\n').trim();
 
                     // Si el PDF es una imagen escaneada, intentar OCR en sus páginas (máximo 2 para no colgar el celular).
-                    if (extractedText.replace(/\s/g, '').length < 20 && window.Tesseract) {
+                    if (extractedText.replace(/\\s/g, '').length < 20 && window.Tesseract) {
                         showLoading(true);
                         const ocrPages = [];
-                        const maxPaginasOCR = Math.min(pdfDoc.numPages, 2); // <-- LÍMITE DE PÁGINAS
+                        const maxPaginasOCR = Math.min(pdfDoc.numPages, 2);
                         for (let i = 1; i <= maxPaginasOCR; i++) {
                             const page = await pdfDoc.getPage(i);
                             const viewport = page.getViewport({ scale: 2 });
@@ -441,7 +476,7 @@
                             canvas.width = 0;
                             canvas.height = 0;
                         }
-                        extractedText = ocrPages.join('\n').trim();
+                        extractedText = ocrPages.join('\\n').trim();
                     }
                 } else {
                     extractedText = await file.text();
@@ -451,11 +486,11 @@
                     throw new Error("No se encontró texto legible en el archivo. Si es un PDF escaneado, probá con una imagen más nítida.");
                 }
 
-                const cleanText = extractedText.replace(/\s+/g, ' ').trim();
+                const cleanText = extractedText.replace(/\\s+/g, ' ').trim();
 
                 // 1) Lectura directa de los datos incrustados por index.html (100% confiable)
                 let embedded = null;
-                const mk = cleanText.replace(/\s+/g, '').match(/PAGAREDATA::([A-Za-z0-9+\/=]+)::END/);
+                const mk = cleanText.replace(/\\s+/g, '').match(/PAGAREDATA::([A-Za-z0-9+\\/=]+)::END/);
                 if (mk) {
                     try { embedded = JSON.parse(decodeURIComponent(escape(atob(mk[1])))); } catch (e) { embedded = null; }
                 }
@@ -469,13 +504,13 @@
                 };
                 const parseMoney = (raw) => {
                     if (!raw) return null;
-                    let value = raw.replace(/[^\d.,]/g, '');
+                    let value = raw.replace(/[^\\d.,]/g, '');
                     if (value.includes('.') && value.includes(',')) {
-                        value = value.replace(/\./g, '').replace(',', '.');
+                        value = value.replace(/\\./g, '').replace(',', '.');
                     } else if (value.includes(',')) {
                         value = value.replace(',', '.');
-                    } else if (/^\d{1,3}(\.\d{3})+$/.test(value)) {
-                        value = value.replace(/\./g, '');
+                    } else if (/^\\d{1,3}(\\.\\d{3})+$/.test(value)) {
+                        value = value.replace(/\\./g, '');
                     }
                     const n = Number(value);
                     return Number.isFinite(n) && n > 0 ? n : null;
@@ -484,60 +519,65 @@
                 // 2) Respaldo: lectura por texto (PDFs viejos o escaneados). Se prioriza el bloque "Datos del Solicitante"
                 //    para no confundir el DNI del prestamista con el del solicitante.
                 const solicBlock = (cleanText.match(/Datos del Solicitante(.{0,300})/i) || [])[1] || '';
-                let nombreRaw, dniRaw, montoRaw, cuotasRaw, interesRaw, fechaRaw, frecuenciaRaw;
+                let nombreRaw, dniRaw, telefonoRaw, montoRaw, cuotasRaw, interesRaw, fechaRaw, frecuenciaRaw;
 
                 if (embedded) {
                     nombreRaw = embedded.nombre;
                     dniRaw = String(embedded.dni || '');
+                    telefonoRaw = String(embedded.telefono || embedded.celular || '');
                     montoRaw = String(embedded.montoInicial || '');
                     cuotasRaw = String(embedded.numCuotas || '');
                     interesRaw = String(embedded.interes ?? '');
                     fechaRaw = embedded.fecha || '';
-                    frecuenciaRaw = embedded.frecuencia || 'mensual'; // <-- LEER FRECUENCIA
+                    frecuenciaRaw = embedded.frecuencia || 'mensual';
                 } else {
                     nombreRaw = findMatch([
-                        /Nombre\s*:\s*(.+?)\s+(?:D\.?N\.?I\.?\s*:)/i
+                        /Nombre\\s*:\\s*(.+?)\\s+(?:D\\.?N\\.?I\\.?\\s*:)/i
                     ], solicBlock) || findMatch([
-                        /(?:Nombre(?:\s+Completo)?|Deudor|Cliente|Titular|Sr\.?|Sra\.?)\s*[:\-]?\s*([A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+(?:\s+[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+){0,5})(?=\s+(?:D\.?N\.?I\.?|Documento|Monto|Capital|Pr[ée]stamo|Plazo|Inter[eé]s|Cuotas|Fecha|Domicilio)|[,;.]|$)/i,
-                        /([A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-ZÁÉÍÓÚÜÑ]+){1,5})\s+(?:D\.?N\.?I\.?|Documento)/i
+                        /(?:Nombre(?:\\s+Completo)?|Deudor|Cliente|Titular|Sr\\.?|Sra\\.?)\\s*[:\\-]?\\s*([A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+(?:\\s+[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+){0,5})(?=\\s+(?:D\\.?N\\.?I\\.?|Documento|Monto|Capital|Pr[ée]stamo|Plazo|Inter[eé]s|Cuotas|Fecha|Domicilio)|[,;.]|$)/i,
+                        /([A-ZÁÉÍÓÚÜÑ]+(?:\\s+[A-ZÁÉÍÓÚÜÑ]+){1,5})\\s+(?:D\\.?N\\.?I\\.?|Documento)/i
                     ]);
                     dniRaw = findMatch([
-                        /D\.?\s*N\.?\s*I\.?\s*:\s*([0-9]{1,2}(?:\.[0-9]{3}){2}|[0-9]{7,8})/i
+                        /D\\.?\\s*N\\.?\\s*I\\.?\\s*:\\s*([0-9]{1,2}(?:\\.[0-9]{3}){2}|[0-9]{7,8})/i
                     ], solicBlock) || findMatch([
-                        /(?:D\.?\s*N\.?\s*I\.?|Documento|Nro\.?\s*de?\s*documento)[^\d]{0,15}([0-9]{1,2}(?:\.[0-9]{3}){2}|[0-9]{7,8})/i,
-                        /\b([0-9]{2}\.[0-9]{3}\.[0-9]{3})\b/
+                        /(?:D\\.?\\s*N\\.?\\s*I\\.?|Documento|Nro\\.?\\s*de?\\s*documento)[^\\d]{0,15}([0-9]{1,2}(?:\\.[0-9]{3}){2}|[0-9]{7,8})/i,
+                        /\\b([0-9]{2}\\.[0-9]{3}\\.[0-9]{3})\\b/
                     ]);
+                    telefonoRaw = findMatch([
+                        /(?:Tel[ée]fono|Celular|Cel\\.?|Tel\\.?)\\s*[:\\-]?\\s*([+0-9][0-9\\s\\-()]{6,18})/i
+                    ], solicBlock) || '';
                     montoRaw = findMatch([
-                        /la\s+cantidad\s+de\s*\$\s*([0-9][0-9.,]*)/i,
-                        /(?:Monto\s+(?:inicial|solicitado|prestado)?|Capital|Pr[ée]stamo|Importe\s+(?:solicitado|total)?|Valor\s+del\s+pr[ée]stamo)[^\d$]{0,20}\$?\s*([0-9][0-9.,]*)/i,
-                        /\$\s*([0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?|[0-9]{4,}(?:,[0-9]{1,2})?)/
+                        /la\\s+cantidad\\s+de\\s*\\$\\s*([0-9][0-9.,]*)/i,
+                        /(?:Monto\\s+(?:inicial|solicitado|prestado)?|Capital|Pr[ée]stamo|Importe\\s+(?:solicitado|total)?|Valor\\s+del\\s+pr[ée]stamo)[^\\d$]{0,20}\\$?\\s*([0-9][0-9.,]*)/i,
+                        /\\$\\s*([0-9]{1,3}(?:\\.[0-9]{3})+(?:,[0-9]{1,2})?|[0-9]{4,}(?:,[0-9]{1,2})?)/
                     ]);
                     cuotasRaw = findMatch([
-                        /en\s+([0-9]{1,2})\s+cuotas/i,
-                        /(?:Cantidad\s+de\s+cuotas|N[úu]mero\s+de\s+cuotas|Cuotas|Plazo)[^\d]{0,20}([0-9]{1,2})/i,
-                        /\b([0-9]{1,2})\s*(?:cuotas|pagos|mensualidades)\b/i
+                        /en\\s+([0-9]{1,2})\\s+cuotas/i,
+                        /(?:Cantidad\\s+de\\s+cuotas|N[úu]mero\\s+de\\s+cuotas|Cuotas|Plazo)[^\\d]{0,20}([0-9]{1,2})/i,
+                        /\\b([0-9]{1,2})\\s*(?:cuotas|pagos|mensualidades)\\b/i
                     ]);
                     interesRaw = findMatch([
-                        /inter[eé]s\s+del\s+([0-9]+(?:[.,][0-9]+)?)\s*%/i,
-                        /(?:Inter[eé]s(?:\s+mensual)?|Tasa(?:\s+de\s+inter[eé]s)?)[^\d]{0,15}([0-9]+(?:[.,][0-9]+)?)\s*%/i,
-                        /([0-9]+(?:[.,][0-9]+)?)\s*%\s*(?:mensual|de\s+inter[eé]s)/i
+                        /inter[eé]s\\s+del\\s+([0-9]+(?:[.,][0-9]+)?)\\s*%/i,
+                        /(?:Inter[eé]s(?:\\s+mensual)?|Tasa(?:\\s+de\\s+inter[eé]s)?)[^\\d]{0,15}([0-9]+(?:[.,][0-9]+)?)\\s*%/i,
+                        /([0-9]+(?:[.,][0-9]+)?)\\s*%\\s*(?:mensual|de\\s+inter[eé]s)/i
                     ]);
                     fechaRaw = findMatch([
-                        /(?:Fecha(?:\s+de\s+(?:inicio|firma|emisi[oó]n))?|Firmado\s+el)[^\d]{0,15}([0-3]?\d[\/.-][01]?\d[\/.-]\d{4})/i,
-                        /\b([0-3]?\d[\/.-][01]?\d[\/.-]\d{4})\b/
+                        /(?:Fecha(?:\\s+de\\s+(?:inicio|firma|emisi[oó]n))?|Firmado\\s+el)[^\\d]{0,15}([0-3]?\\d[\\/.-][01]?\\d[\\/.-]\\d{4})/i,
+                        /\\b([0-3]?\\d[\\/.-][01]?\\d[\\/.-]\\d{4})\\b/
                     ]);
-                    frecuenciaRaw = 'mensual'; // Por defecto si no está incrustado
+                    frecuenciaRaw = 'mensual';
                 }
 
-                const nombre = nombreRaw ? nombreRaw.replace(/\s+/g, ' ').toUpperCase() : '';
-                const dni = dniRaw ? dniRaw.replace(/\./g, '') : '';
+                const nombre = nombreRaw ? nombreRaw.replace(/\\s+/g, ' ').toUpperCase() : '';
+                const dni = dniRaw ? dniRaw.replace(/\\./g, '') : '';
+                const telefono = telefonoRaw ? telefonoRaw.trim() : '';
                 const montoInicial = parseMoney(montoRaw);
                 const numCuotasParsed = cuotasRaw ? parseInt(cuotasRaw, 10) : NaN;
                 const numCuotas = Number.isInteger(numCuotasParsed) && numCuotasParsed >= 1 && numCuotasParsed <= 60 ? numCuotasParsed : null;
                 const interesParsed = interesRaw ? Number(interesRaw.replace(',', '.')) : null;
                 const interesMensualPct = Number.isFinite(interesParsed) && interesParsed >= 0 ? interesParsed : null;
                 const fechaPagaré = fechaRaw ? fechaRaw.replace(/[.-]/g, '/') : '';
-                const frecuencia = frecuenciaRaw; // <-- ASIGNAR FRECUENCIA
+                const frecuencia = frecuenciaRaw;
 
                 const missing = [];
                 if (!nombre) missing.push("nombre del cliente");
@@ -549,9 +589,9 @@
                     const preview = cleanText.slice(0, 900);
                     throw new Error(
                         "Pude leer el archivo, pero no identifiqué con seguridad: " + missing.join(", ") +
-                        ". No cargué la ficha para evitar registrar datos incorrectos.\n\n" +
-                        "Revisá que el PDF tenga texto legible y que los campos estén identificados (Nombre, DNI, Monto y Cuotas).\n\n" +
-                        "Texto detectado (primeros caracteres):\n" + preview
+                        ". No cargué la ficha para evitar registrar datos incorrectos.\\n\\n" +
+                        "Revisá que el PDF tenga texto legible y que los campos estén identificados (Nombre, DNI, Monto y Cuotas).\\n\\n" +
+                        "Texto detectado (primeros caracteres):\\n" + preview
                     );
                 }
 
@@ -561,7 +601,7 @@
                 const valorCuota = Math.round(montoTotal / numCuotas);
 
                 // Evitar duplicados obvios al volver a cargar el mismo pagaré.
-                const duplicate = activeClients.some(c => String(c.dni).replace(/\D/g, '') === dni.replace(/\D/g, '') &&
+                const duplicate = activeClients.some(c => String(c.dni).replace(/\\D/g, '') === dni.replace(/\\D/g, '') &&
                     Number(c.montoInicial) === montoInicial && c.fechaInicio === (fechaPagaré || c.fechaInicio));
                 if (duplicate) {
                     throw new Error("Ya existe una ficha activa con el mismo DNI y monto. No se creó un duplicado.");
@@ -571,6 +611,7 @@
                     id: 'pag_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                     nombre,
                     dni,
+                    telefono,
                     montoInicial,
                     montoTotal,
                     numCuotas,
@@ -578,7 +619,7 @@
                     cuotasPagadas: 0,
                     fechaInicio: fechaPagaré || new Date().toLocaleDateString('es-AR'),
                     interesMensual: interesFinal,
-                    frecuencia: frecuencia, // <-- GUARDAR FRECUENCIA
+                    frecuencia: frecuencia,
                     dispositivo: embedded ? (embedded.dispositivo || '') : '',
                     fechaHoraFirma: embedded ? (embedded.fechaHora || '') : ''
                 };
@@ -610,7 +651,17 @@
         function closeAddMenu() { document.getElementById('addMenu').classList.add('hidden'); }
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#addMenuWrap')) closeAddMenu();
+            if (!e.target.closest('.hist-trigger')) {
+                document.querySelectorAll('.hist-trigger.active').forEach(el => el.classList.remove('active'));
+            }
         });
+
+        function toggleHistTooltip(el, e) {
+            if (e) e.stopPropagation();
+            const wasActive = el.classList.contains('active');
+            document.querySelectorAll('.hist-trigger.active').forEach(item => item.classList.remove('active'));
+            if (!wasActive) el.classList.add('active');
+        }
 
         let editingId = null;
 
@@ -618,14 +669,13 @@
             const isPag = !!editClient && editClient.tipo !== 'manual';
             document.getElementById('mTitle').textContent = editClient ? 'Editar cliente' : 'Cliente sin pagaré';
             document.getElementById('mSaveBtn').textContent = editClient ? 'Guardar cambios' : 'Guardar cliente';
-            document.getElementById('mDniWrap').classList.toggle('hidden', !isPag);
             document.getElementById('mFrecWrap').classList.toggle('hidden', isPag);
         }
 
         function openManualForm() {
             editingId = null;
             setFormMode(null);
-            ['mNombre', 'mMonto', 'mInteres', 'mCuotas'].forEach(id => document.getElementById(id).value = '');
+            ['mNombre', 'mDni', 'mTelefono', 'mMonto', 'mInteres', 'mCuotas'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('mFrecuencia').value = 'mensual';
             const t = new Date();
             document.getElementById('mFecha').value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
@@ -641,7 +691,8 @@
             setFormMode(cl);
             document.getElementById('mNombre').value = cl.nombre || '';
             document.getElementById('mDni').value = cl.dni || '';
-            document.getElementById('mMonto').value = String(cl.montoInicial || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            document.getElementById('mTelefono').value = cl.telefono || '';
+            document.getElementById('mMonto').value = String(cl.montoInicial || '').replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');
             document.getElementById('mInteres').value = cl.interesMensual ?? '';
             document.getElementById('mCuotas').value = cl.numCuotas || '';
             document.getElementById('mFrecuencia').value = cl.frecuencia || 'mensual';
@@ -657,17 +708,17 @@
         // Pone los puntos de miles mientras se escribe (1500000 -> 1.500.000)
         function formatMonto(el) {
             const caret = el.selectionStart;
-            const digitsBeforeCaret = el.value.slice(0, caret).replace(/\D/g, '').length;
-            const digits = el.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
-            el.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const digitsBeforeCaret = el.value.slice(0, caret).replace(/\\D/g, '').length;
+            const digits = el.value.replace(/\\D/g, '').replace(/^0+(?=\\d)/, '');
+            el.value = digits.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');
             let pos = 0, seen = 0;
             while (pos < el.value.length && seen < digitsBeforeCaret) {
-                if (/\d/.test(el.value[pos])) seen++;
+                if (/\\d/.test(el.value[pos])) seen++;
                 pos++;
             }
             try { el.setSelectionRange(pos, pos); } catch (e) {}
         }
-        const montoValue = () => Number(document.getElementById('mMonto').value.replace(/\D/g, '')) || 0;
+        const montoValue = () => Number(document.getElementById('mMonto').value.replace(/\\D/g, '')) || 0;
 
         function updateManualPreview() {
             const monto = montoValue();
@@ -687,6 +738,8 @@
             const err = document.getElementById('mError');
             const fail = (m) => { err.textContent = m; err.classList.remove('hidden'); };
             const nombre = document.getElementById('mNombre').value.trim();
+            const dni = document.getElementById('mDni').value.trim();
+            const telefono = document.getElementById('mTelefono').value.trim();
             const monto = montoValue();
             const interesRaw = document.getElementById('mInteres').value;
             const interes = interesRaw === '' ? 0 : Number(interesRaw);
@@ -708,8 +761,9 @@
                 const cl = activeClients.find(x => x.id === editingId);
                 if (cl) {
                     cl.nombre = nombre;
-                    if (cl.tipo !== 'manual') cl.dni = document.getElementById('mDni').value.trim();
-                    else cl.frecuencia = frecuencia;
+                    cl.dni = dni;
+                    cl.telefono = telefono;
+                    if (cl.tipo === 'manual') cl.frecuencia = frecuencia;
                     cl.montoInicial = montoInicial;
                     cl.montoTotal = montoTotal;
                     cl.numCuotas = cuotas;
@@ -731,7 +785,8 @@
                 id: 'man_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                 tipo: 'manual',
                 nombre,
-                dni: '',
+                dni,
+                telefono,
                 montoInicial,
                 montoTotal,
                 numCuotas: cuotas,
@@ -778,11 +833,11 @@
             const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
             return Math.round((dt - today) / 86400000);
         }
-        // Prioridad de orden: 0 = vencida, 1 = vence en 5 días o menos, 2 = resto
+        // Prioridad de orden: 0 = vencida, 1 = vence en 3 días o menos, 2 = resto
         function dueGroup(days) {
             if (days === null) return 2;
             if (days < 0) return 0;
-            return days <= 5 ? 1 : 2;
+            return days <= 3 ? 1 : 2;
         }
         function dueTitle(days) {
             if (days < 0) return `Cuota vencida hace ${-days} día${days === -1 ? '' : 's'}`;
@@ -818,7 +873,7 @@
 
         // ===== GANANCIA MENSUAL =====
         const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        const fmtMoney = n => '$' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const fmtMoney = n => '$' + String(Math.round(n)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');
         const ymKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         let profitOpen = false;
 
@@ -884,7 +939,6 @@
             const client = activeClients.find(c => c.id === clientId);
             if (!client) return;
 
-            // Si ya está todo pagado, no permitir marcar más
             if (client.cuotasPagadas === client.numCuotas && index >= client.numCuotas) {
                 return; 
             }
@@ -910,14 +964,18 @@
                 id: client.id,
                 nombre: client.nombre,
                 dni: client.dni || '',
+                telefono: client.telefono || '',
+                montoInicial: client.montoInicial || 0,
                 montoTotal: client.montoTotal,
                 numCuotas: client.numCuotas,
                 fechaInicio: client.fechaInicio,
                 fechaFin: fechaFinStr,
+                cancelOrder: Date.now(),
                 pagos: client.pagos || []
             };
 
-            historyClients.push(historyRecord);
+            // Se inserta primero para respetar orden de cancelación (más reciente primero)
+            historyClients.unshift(historyRecord);
             activeClients.splice(clientIndex, 1);
             saveDatabase();
         }
@@ -947,7 +1005,7 @@
                 emptyActive.classList.remove('hidden');
             } else {
                 emptyActive.classList.add('hidden');
-                const tsOf = c => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
+                const tsOf = c => Number((String(c.id).match(/_(\\d{10,})/) || [])[1]) || 0;
                 const colCount = window.matchMedia('(min-width: 768px)').matches ? 2 : 1;
                 const colEls = [];
                 for (let k = 0; k < colCount; k++) {
@@ -971,6 +1029,7 @@
                     const expanded = expandedIds.has(client.id);
                     const daysLeft = daysToNextDue(client);
                     const showDot = daysLeft !== null && daysLeft <= 3;
+                    const isAllPaid = client.cuotasPagadas === client.numCuotas;
 
                     let boxesHtml = '';
                     for (let i = 0; i < client.numCuotas; i++) {
@@ -986,30 +1045,33 @@
                     }
 
                     const card = document.createElement('div');
-                    card.className = "bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3 relative " + (expanded ? "" : "cursor-pointer hover:border-slate-300 transition");
+                    const cardToneClass = isAllPaid
+                        ? "bg-emerald-50/40 border-emerald-400 ring-1 ring-emerald-500/20"
+                        : "bg-white border-slate-200 " + (expanded ? "" : "hover:border-slate-300");
+                    card.className = cardToneClass + " border rounded-xl p-4 shadow-sm space-y-3 relative transition " + (expanded ? "" : "cursor-pointer");
                     card.innerHTML = `
-                        <div data-hdr="1" class="flex justify-between items-start ${expanded ? 'border-b border-slate-100 pb-2 cursor-pointer' : ''}">
-                            <div class="flex items-center gap-2 flex-wrap">
+                        <div data-hdr="1" class="flex justify-between items-start gap-2 ${expanded ? 'border-b border-slate-100 pb-2 cursor-pointer' : ''}">
+                            <div class="flex items-center gap-2 flex-wrap min-w-0">
                                 <h3 class="font-bold text-navy-900 text-sm">${esc(client.nombre)}</h3>
                                 <span class="text-xs text-slate-500">${client.fechaInicio}</span>
                                 ${showDot ? `<span class="pulse-dot" title="${dueTitle(daysLeft)}"></span>` : ''}
                                 ${expanded ? `<span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
                                     Int: ${client.interesMensual}%
                                 </span>` : ''}
-                                ${(!isManual && expanded) ? `<p class="text-xs text-slate-500 w-full mt-0.5">DNI: ${esc(client.dni)}</p>` : ''}
+                                ${(expanded && (client.dni || client.telefono)) ? `<p class="text-xs text-slate-500 w-full mt-0.5">${client.dni ? 'DNI: ' + esc(client.dni) : ''}${client.dni && client.telefono ? ' • ' : ''}${client.telefono ? 'Cel: ' + esc(client.telefono) : ''}</p>` : ''}
                                 ${(expanded && client.fechaHoraFirma) ? `<p class="text-[10px] text-slate-400 w-full mt-0.5">Creado y firmado: ${client.fechaHoraFirma}${client.dispositivo ? ' • ' + client.dispositivo : ''}</p>` : ''}
                             </div>
-                            <div class="flex items-center gap-2">
-                                <button onclick="openEditForm('${client.id}')" class="text-slate-400 hover:text-navy-900 p-1 rounded" title="Editar datos">
-                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                                </button>
-                                ${client.cuotasPagadas === client.numCuotas ? `
-                                    <button onclick="moveToHistory('${client.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded transition flex items-center gap-1 shadow-sm">
-                                        <i data-lucide="archive" class="w-3 h-3"></i> Finalizar
+                            <div class="flex items-center gap-1 shrink-0">
+                                ${isAllPaid ? `
+                                    <button onclick="moveToHistory('${client.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white p-1 rounded transition inline-flex items-center justify-center shadow-sm" title="Finalizar y pasar a Historial">
+                                        <i data-lucide="archive" class="w-3.5 h-3.5"></i>
                                     </button>
                                 ` : ''}
-                                <button onclick="deleteActiveClient('${client.id}')" class="text-slate-400 hover:text-bordo-700 p-1 rounded" title="Eliminar ficha">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                <button onclick="openEditForm('${client.id}')" class="text-slate-400 hover:text-navy-900 p-1 rounded transition inline-flex items-center justify-center" title="Editar datos">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteActiveClient('${client.id}')" class="text-slate-400 hover:text-bordo-700 p-1 rounded transition inline-flex items-center justify-center" title="Eliminar ficha">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                 </button>
                             </div>
                         </div>
@@ -1037,7 +1099,6 @@
                         </div>
                         </div>
                     `;
-                    // Plegada: tocar en cualquier parte la despliega. Desplegada: solo el encabezado la pliega.
                     card.addEventListener('click', (ev) => {
                         if (ev.target.closest('button')) return;
                         if (!expandedIds.has(client.id) || ev.target.closest('[data-hdr]')) toggleExpand(client.id);
@@ -1050,19 +1111,67 @@
                 emptyHistory.style.display = 'block';
             } else {
                 emptyHistory.style.display = 'none';
-                historyClients.forEach(h => {
+                historyClients.forEach((h, hIdx) => {
                     const row = document.createElement('tr');
                     row.className = "hover:bg-slate-50 transition";
+
+                    const hasDni = h.dni && String(h.dni).trim() !== '';
+                    const hasTel = h.telefono && String(h.telefono).trim() !== '';
+                    const hasInicial = Number(h.montoInicial) > 0;
+                    const solicitadoTxt = hasInicial ? `$${Number(h.montoInicial).toLocaleString('es-AR')}` : '—';
+                    const canceladoTxt = `$${Number(h.montoTotal || 0).toLocaleString('es-AR')}`;
+                    const ganancia = hasInicial ? Math.max(0, Number(h.montoTotal || 0) - Number(h.montoInicial || 0)) : 0;
+
+                    // Las primeras dos filas despliegan hacia abajo para evitar recorte contra el encabezado de la tabla
+                    const openDown = hIdx < 2;
+                    const posClass = openDown ? 'top-full mt-1.5 top-mode' : 'bottom-full mb-1.5';
+                    const arrowClass = openDown
+                        ? 'bottom-full left-4 border-4 border-transparent border-b-slate-900'
+                        : 'top-full left-4 border-4 border-transparent border-t-slate-900';
+
+                    const extraPersonalHtml = (hasDni || hasTel) ? `
+                        <div class="mt-1.5 pt-1.5 border-t border-slate-700/80 space-y-0.5 text-[10px] text-slate-400">
+                            ${hasDni ? `<div class="leading-tight"><span class="text-slate-500">DNI:</span> <span class="font-mono text-slate-300">${esc(h.dni)}</span></div>` : ''}
+                            ${hasTel ? `<div class="leading-tight"><span class="text-slate-500">Tel:</span> <span class="font-mono text-slate-300">${esc(h.telefono)}</span></div>` : ''}
+                        </div>
+                    ` : '';
+
                     row.innerHTML = `
-                        <td class="p-3 font-semibold text-navy-900">${esc(h.nombre)}</td>
-                        <td class="p-3">${h.dni || '—'}</td>
-                        <td class="p-3 font-semibold text-emerald-700">$${h.montoTotal.toLocaleString('es-AR')}</td>
-                        <td class="p-3">${h.numCuotas} cuota(s)</td>
-                        <td class="p-3 text-slate-500">${h.fechaInicio}</td>
-                        <td class="p-3 text-slate-500">${h.fechaFin}</td>
-                        <td class="p-3 text-right">
-                            <button onclick="deleteHistoryClient('${h.id}')" class="text-slate-400 hover:text-bordo-700">
-                                <i data-lucide="trash" class="w-4 h-4"></i>
+                        <td class="p-3 align-middle">
+                            <div class="relative inline-block hist-trigger cursor-pointer select-none" onclick="toggleHistTooltip(this, event)">
+                                <div class="inline-flex items-center gap-1">
+                                    <span class="font-semibold text-navy-900 leading-snug border-b border-dotted border-slate-400/70">${esc(h.nombre)}</span>
+                                    <i data-lucide="info" class="w-3 h-3 text-slate-400 shrink-0"></i>
+                                </div>
+                                <span class="block text-[11px] text-slate-400 leading-tight mt-0.5">${h.numCuotas} cuota${h.numCuotas === 1 ? '' : 's'}</span>
+                                <div class="hist-tooltip ${posClass} pointer-events-none absolute left-0 z-30 w-52 bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl border border-slate-700 text-left font-normal">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center justify-between gap-2 text-[11px]">
+                                            <span class="text-slate-400">Solicitado:</span>
+                                            <span class="font-semibold text-slate-100 tabular-nums">${solicitadoTxt}</span>
+                                        </div>
+                                        <div class="flex items-center justify-between gap-2 text-[11px]">
+                                            <span class="text-slate-400">Total cancelado:</span>
+                                            <div class="text-right tabular-nums">
+                                                <span class="font-bold text-emerald-400">${canceladoTxt}</span>
+                                                ${ganancia > 0 ? `<span class="block text-[9px] font-medium text-emerald-300/80 leading-none mt-0.5">+$${ganancia.toLocaleString('es-AR')}</span>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ${extraPersonalHtml}
+                                    <div class="absolute ${arrowClass}"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-3 align-middle">
+                            <div class="flex flex-col leading-tight text-[11px]">
+                                <span class="text-slate-500">Inicio: <strong class="font-medium text-slate-700">${h.fechaInicio}</strong></span>
+                                <span class="text-slate-500 mt-0.5">Cancel.: <strong class="font-medium text-emerald-700">${h.fechaFin}</strong></span>
+                            </div>
+                        </td>
+                        <td class="p-3 text-right align-middle">
+                            <button onclick="deleteHistoryClient('${h.id}')" class="text-slate-400 hover:text-bordo-700 p-1 rounded transition inline-flex items-center justify-center" title="Eliminar del historial">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             </button>
                         </td>
                     `;
@@ -1121,7 +1230,7 @@
             if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
             return JSON.stringify(v === undefined ? null : v);
         };
-        const tsOf = (c) => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
+        const tsOf = (c) => Number((String(c.id).match(/_(\\d{10,})/) || [])[1]) || 0;
 
         function showLogin(msg, showBtn) {
             document.body.classList.remove('cloud-ok');
@@ -1133,7 +1242,8 @@
 
         function pushToUi() {
             const a = [...lists.activos].sort((x, y) => tsOf(x) - tsOf(y));
-            const h = [...lists.historial].sort((x, y) => tsOf(x) - tsOf(y));
+            // En Historial: prioriza el orden exacto de cancelación (cancelOrder descendente), y como respaldo el timestamp de creación
+            const h = [...lists.historial].sort((x, y) => (y.cancelOrder || tsOf(y)) - (x.cancelOrder || tsOf(x)));
             window.setCloudData(a, h);
         }
 
@@ -1226,4 +1336,8 @@
         window.cloudApi = { login, logout, sync };
     </script>
 </body>
-</html>
+</html>'''
+
+with open('control.html', 'w', encoding='utf-8') as f:
+    f.write(html_code)
+print("control.html generado con éxito.")
