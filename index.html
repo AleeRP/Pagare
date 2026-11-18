@@ -171,7 +171,8 @@
                             <input type="text" id="montoLetras" value="Cero Pesos" readonly class="w-full text-sm p-2.5 border border-slate-200 bg-slate-50 rounded-lg focus:outline-none text-slate-600 font-medium cursor-not-allowed">
                         </div>
 
-                        <div class="grid grid-cols-2 gap-2">
+                        <!-- AQUÍ ESTÁ EL CAMBIO: AHORA SON 3 COLUMNAS -->
+                        <div class="grid grid-cols-3 gap-2">
                             <div>
                                 <label class="block text-xs font-medium text-slate-700 mb-1">Cant. Cuotas</label>
                                 <select id="cantidadCuotas" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none bg-white">
@@ -183,6 +184,14 @@
                                     <option value="8">8 Cuotas</option>
                                     <option value="12">12 Cuotas</option>
                                     <option value="24">24 Cuotas</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">Frecuencia</label>
+                                <select id="frecuenciaPago" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-navy-800 focus:outline-none bg-white">
+                                    <option value="mensual" selected>Mensual</option>
+                                    <option value="quincenal">Quincenal</option>
+                                    <option value="semanal">Semanal</option>
                                 </select>
                             </div>
                             <div>
@@ -622,7 +631,10 @@
             document.getElementById('docInteres').textContent = document.getElementById('tasaInteres').value.trim() || '0';
 
             const cuotas = parseInt(document.getElementById('cantidadCuotas').value || 1);
-            document.getElementById('docCuotasTexto').textContent = `${cuotas} ${cuotas === 1 ? 'cuota mensual' : 'cuotas mensuales'}`;
+            // CAMBIO: AHORA USA LA FRECUENCIA
+            const frecuencia = document.getElementById('frecuenciaPago').value;
+            const frecTexto = frecuencia === 'semanal' ? 'semanales' : (frecuencia === 'quincenal' ? 'quincenales' : 'mensuales');
+            document.getElementById('docCuotasTexto').textContent = `${cuotas} ${cuotas === 1 ? 'cuota ' + frecTexto.slice(0, -1) : 'cuotas ' + frecTexto}`;
 
             const now = new Date();
             const fechaHoyStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()}`;
@@ -657,6 +669,8 @@
             document.getElementById('montoLetras').value = 'Cero Pesos';
             document.getElementById('tasaInteres').value = '';
             document.getElementById('cantidadCuotas').value = '2';
+            // CAMBIO: RESETEA LA FRECUENCIA
+            document.getElementById('frecuenciaPago').value = 'mensual';
             
             dniFrontData = null;
             dniBackData = null;
@@ -715,6 +729,8 @@
             updateDocument();
             const element = document.getElementById('pagareDocument');
             const cuotas = parseInt(document.getElementById('cantidadCuotas').value || 1);
+            // CAMBIO: TOMA LA FRECUENCIA
+            const frecuenciaVal = document.getElementById('frecuenciaPago').value;
             const interesVal = parseFloat(tasaInteresVal.replace(',', '.') || 0);
             
             const montoInicialNum = parseInt(montoRaw.replace(/\D/g, ''), 10);
@@ -747,6 +763,7 @@
                     numCuotas: cuotas,
                     valorCuota: valorCuotaNum,
                     tasaInteres: interesVal,
+                    frecuencia: frecuenciaVal, // <-- CAMBIO
                     cuotasPagadas: 0,
                     fechaInicio: fechaInicioStr,
                     dniFront: dniFrontData || null,
@@ -794,6 +811,7 @@
                     montoInicial: montoInicialNum,
                     numCuotas: cuotas,
                     interes: interesVal,
+                    frecuencia: frecuenciaVal, // <-- CAMBIO
                     fecha: fechaInicioStr,
                     acreedor: acreedorNombreVal,
                     acreedorDni: acreedorDniVal,
@@ -819,7 +837,7 @@
                              `*Solicitante:* ${deudorNombreVal}\n` +
                              `*DNI:* ${deudorDniVal}\n` +
                              `*Monto:* $${montoRaw} ARS\n` +
-                             `*Plan:* ${cuotas} cuota(s)\n\n` +
+                             `*Plan:* ${cuotas} cuota(s) ${frecuenciaVal}\n\n` +
                              `_Documento de pagaré digital generado y vinculado al sistema de seguimiento._`;
 
                 document.getElementById('customModal').classList.remove('flex');
