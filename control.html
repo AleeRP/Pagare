@@ -423,11 +423,12 @@
                     }
                     extractedText = pageTexts.join('\n').trim();
 
-                    // Si el PDF es una imagen escaneada, intentar OCR en sus páginas.
+                    // Si el PDF es una imagen escaneada, intentar OCR en sus páginas (máximo 2 para no colgar el celular).
                     if (extractedText.replace(/\s/g, '').length < 20 && window.Tesseract) {
-                        showLoading(true); // solo se muestra si hace falta OCR (lento)
+                        showLoading(true);
                         const ocrPages = [];
-                        for (let i = 1; i <= pdfDoc.numPages; i++) {
+                        const maxPaginasOCR = Math.min(pdfDoc.numPages, 2); // <-- LÍMITE DE PÁGINAS
+                        for (let i = 1; i <= maxPaginasOCR; i++) {
                             const page = await pdfDoc.getPage(i);
                             const viewport = page.getViewport({ scale: 2 });
                             const canvas = document.createElement('canvas');
@@ -483,7 +484,7 @@
                 // 2) Respaldo: lectura por texto (PDFs viejos o escaneados). Se prioriza el bloque "Datos del Solicitante"
                 //    para no confundir el DNI del prestamista con el del solicitante.
                 const solicBlock = (cleanText.match(/Datos del Solicitante(.{0,300})/i) || [])[1] || '';
-                let nombreRaw, dniRaw, montoRaw, cuotasRaw, interesRaw, fechaRaw;
+                let nombreRaw, dniRaw, montoRaw, cuotasRaw, interesRaw, fechaRaw, frecuenciaRaw;
 
                 if (embedded) {
                     nombreRaw = embedded.nombre;
@@ -492,6 +493,7 @@
                     cuotasRaw = String(embedded.numCuotas || '');
                     interesRaw = String(embedded.interes ?? '');
                     fechaRaw = embedded.fecha || '';
+                    frecuenciaRaw = embedded.frecuencia || 'mensual'; // <-- LEER FRECUENCIA
                 } else {
                     nombreRaw = findMatch([
                         /Nombre\s*:\s*(.+?)\s+(?:D\.?N\.?I\.?\s*:)/i
@@ -524,6 +526,7 @@
                         /(?:Fecha(?:\s+de\s+(?:inicio|firma|emisi[oó]n))?|Firmado\s+el)[^\d]{0,15}([0-3]?\d[\/.-][01]?\d[\/.-]\d{4})/i,
                         /\b([0-3]?\d[\/.-][01]?\d[\/.-]\d{4})\b/
                     ]);
+                    frecuenciaRaw = 'mensual'; // Por defecto si no está incrustado
                 }
 
                 const nombre = nombreRaw ? nombreRaw.replace(/\s+/g, ' ').toUpperCase() : '';
@@ -534,6 +537,7 @@
                 const interesParsed = interesRaw ? Number(interesRaw.replace(',', '.')) : null;
                 const interesMensualPct = Number.isFinite(interesParsed) && interesParsed >= 0 ? interesParsed : null;
                 const fechaPagaré = fechaRaw ? fechaRaw.replace(/[.-]/g, '/') : '';
+                const frecuencia = frecuenciaRaw; // <-- ASIGNAR FRECUENCIA
 
                 const missing = [];
                 if (!nombre) missing.push("nombre del cliente");
@@ -574,14 +578,13 @@
                     cuotasPagadas: 0,
                     fechaInicio: fechaPagaré || new Date().toLocaleDateString('es-AR'),
                     interesMensual: interesFinal,
+                    frecuencia: frecuencia, // <-- GUARDAR FRECUENCIA
                     dispositivo: embedded ? (embedded.dispositivo || '') : '',
                     fechaHoraFirma: embedded ? (embedded.fechaHora || '') : ''
                 };
 
-                activeClients.unshift(newClient); // el más reciente queda primero
+                activeClients.unshift(newClient);
                 saveDatabase();
-                // Sin cartel de confirmación: la ficha aparece directo en la lista.
-                // Solo se avisa si no se encontró el interés (se registró 0 %).
                 if (interesMensualPct === null) {
                     showCustomAlert("Revisá el interés", `Se cargó a ${nombre}, pero no encontré la tasa de interés y se registró 0 %.`);
                 }
@@ -712,7 +715,10 @@
                     cl.numCuotas = cuotas;
                     cl.valorCuota = Math.round(montoTotal / cuotas);
                     cl.cuotasPagadas = Math.min(cl.cuotasPagadas || 0, cuotas);
-                    cl.pagos = (cl.pagos || []).filter(p => p.n < cl.cuotasPagadas).map(p => ({ ...p, g: gananciaPorCuota(cl) }));
+                    // RECALCULAR GANANCIAS SI CAMBIÓ EL MONTO
+                    if (cl.pagos && cl.pagos.length > 0) {
+                        cl.pagos = cl.pagos.filter(p => p.n < cl.cuotasPagadas).map(p => ({ ...p, g: gananciaPorCuota(cl) }));
+                    }
                     cl.interesMensual = interes;
                     cl.fechaInicio = `${d}/${m}/${y}`;
                 }
@@ -878,6 +884,11 @@
             const client = activeClients.find(c => c.id === clientId);
             if (!client) return;
 
+            // Si ya está todo pagado, no permitir marcar más
+            if (client.cuotasPagadas === client.numCuotas && index >= client.numCuotas) {
+                return; 
+            }
+
             if (index < client.cuotasPagadas) {
                 setCuotasPagadas(client, index);
             } else {
@@ -985,7 +996,7 @@
                                 ${expanded ? `<span class="bg-bordo-700/10 text-bordo-700 border border-bordo-600/20 px-2 py-0.5 rounded text-xs font-mono font-black tracking-wider" title="Interés del préstamo">
                                     Int: ${client.interesMensual}%
                                 </span>` : ''}
-                                ${(!isManual && expanded) ? `<p class="text-xs text-slate-500 w-full mt-0.5">DNI: ${client.dni}</p>` : ''}
+                                ${(!isManual && expanded) ? `<p class="text-xs text-slate-500 w-full mt-0.5">DNI: ${esc(client.dni)}</p>` : ''}
                                 ${(expanded && client.fechaHoraFirma) ? `<p class="text-[10px] text-slate-400 w-full mt-0.5">Creado y firmado: ${client.fechaHoraFirma}${client.dispositivo ? ' • ' + client.dispositivo : ''}</p>` : ''}
                             </div>
                             <div class="flex items-center gap-2">
