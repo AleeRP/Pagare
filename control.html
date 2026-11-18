@@ -66,32 +66,32 @@
         html.dark .bg-white { background-color: #131c31; }
         html.dark .bg-slate-50 { background-color: #0f1729; }
         html.dark .bg-slate-100 { background-color: #1b2540; }
-        html.dark .hover\\:bg-slate-50:hover { background-color: #18233d; }
-        html.dark .hover\\:bg-slate-100:hover { background-color: #202c4a; }
-        html.dark .hover\\:bg-slate-200:hover { background-color: #2a3858; }
+        html.dark .hover\:bg-slate-50:hover { background-color: #18233d; }
+        html.dark .hover\:bg-slate-100:hover { background-color: #202c4a; }
+        html.dark .hover\:bg-slate-200:hover { background-color: #2a3858; }
         html.dark .border-slate-100 { border-color: #1e2a44; }
         html.dark .border-slate-200 { border-color: #25324f; }
         html.dark .border-slate-300 { border-color: #33415f; }
-        html.dark .hover\\:border-slate-300:hover { border-color: #3f5075; }
+        html.dark .hover\:border-slate-300:hover { border-color: #3f5075; }
         html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1e2a44; }
-        html.dark .text-navy-900, html.dark .hover\\:text-navy-900:hover { color: #e8edf7; }
+        html.dark .text-navy-900, html.dark .hover\:text-navy-900:hover { color: #e8edf7; }
         html.dark .text-slate-800, html.dark .text-slate-700 { color: #d5dcea; }
         html.dark .text-slate-600 { color: #b5bfd3; }
         html.dark .text-slate-500 { color: #94a0b8; }
         html.dark .text-slate-400 { color: #7d89a3; }
-        html.dark .hover\\:text-slate-600:hover { color: #b5bfd3; }
-        html.dark .text-bordo-700, html.dark .hover\\:text-bordo-700:hover { color: #fda4af; }
+        html.dark .hover\:text-slate-600:hover { color: #b5bfd3; }
+        html.dark .text-bordo-700, html.dark .hover\:text-bordo-700:hover { color: #fda4af; }
         html.dark .text-emerald-700 { color: #34d399; }
         html.dark .text-emerald-800, html.dark .text-emerald-600 { color: #6ee7b7; }
         html.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.18); }
         html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12); }
-        html.dark .bg-emerald-50\\/40 { background-color: rgba(16, 185, 129, 0.10); }
+        html.dark .bg-emerald-50\/40 { background-color: rgba(16, 185, 129, 0.10); }
         html.dark .border-emerald-300 { border-color: rgba(52, 211, 153, 0.45); }
         html.dark .border-emerald-400 { border-color: rgba(52, 211, 153, 0.55); }
-        html.dark .bg-bordo-700\\/10, html.dark .bg-bordo-600\\/10 { background-color: rgba(251, 113, 133, 0.14); }
-        html.dark .border-bordo-600\\/20 { border-color: rgba(251, 113, 133, 0.3); }
+        html.dark .bg-bordo-700\/10, html.dark .bg-bordo-600\/10 { background-color: rgba(251, 113, 133, 0.14); }
+        html.dark .border-bordo-600\/20 { border-color: rgba(251, 113, 133, 0.3); }
         html.dark .bg-navy-900 { background-color: #223052; }
-        html.dark .hover\\:bg-navy-800:hover { background-color: #2c3d66; }
+        html.dark .hover\:bg-navy-800:hover { background-color: #2c3d66; }
         html.dark input, html.dark select, html.dark textarea { background-color: #0f1729; color: #e8edf7; }
         html.dark input::placeholder, html.dark textarea::placeholder { color: #64718c; }
         html.dark .pulse-dot { background: #ef4444; }
@@ -432,7 +432,7 @@
             }
             window.cloudApi.sync(activeClients, historyClients).catch(err => {
                 console.error(err);
-                showCustomAlert("No se pudo guardar", "El cambio no llegó a la nube. Revisá tu conexión e intentá de nuevo.\\n" + (err && err.code ? "(" + err.code + ")" : ""));
+                showCustomAlert("No se pudo guardar", "El cambio no llegó a la nube. Revisá tu conexión e intentá de nuevo.\n" + (err && err.code ? "(" + err.code + ")" : ""));
             });
         }
 
@@ -456,10 +456,10 @@
                         const content = await page.getTextContent();
                         pageTexts.push(content.items.map(item => item.str).join(' '));
                     }
-                    extractedText = pageTexts.join('\\n').trim();
+                    extractedText = pageTexts.join('\n').trim();
 
                     // Si el PDF es una imagen escaneada, intentar OCR en sus páginas (máximo 2 para no colgar el celular).
-                    if (extractedText.replace(/\\s/g, '').length < 20 && window.Tesseract) {
+                    if (extractedText.replace(/\s/g, '').length < 20 && window.Tesseract) {
                         showLoading(true);
                         const ocrPages = [];
                         const maxPaginasOCR = Math.min(pdfDoc.numPages, 2);
@@ -476,7 +476,7 @@
                             canvas.width = 0;
                             canvas.height = 0;
                         }
-                        extractedText = ocrPages.join('\\n').trim();
+                        extractedText = ocrPages.join('\n').trim();
                     }
                 } else {
                     extractedText = await file.text();
@@ -486,11 +486,11 @@
                     throw new Error("No se encontró texto legible en el archivo. Si es un PDF escaneado, probá con una imagen más nítida.");
                 }
 
-                const cleanText = extractedText.replace(/\\s+/g, ' ').trim();
+                const cleanText = extractedText.replace(/\s+/g, ' ').trim();
 
                 // 1) Lectura directa de los datos incrustados por index.html (100% confiable)
                 let embedded = null;
-                const mk = cleanText.replace(/\\s+/g, '').match(/PAGAREDATA::([A-Za-z0-9+\\/=]+)::END/);
+                const mk = cleanText.replace(/\s+/g, '').match(/PAGAREDATA::([A-Za-z0-9+\/=]+)::END/);
                 if (mk) {
                     try { embedded = JSON.parse(decodeURIComponent(escape(atob(mk[1])))); } catch (e) { embedded = null; }
                 }
@@ -504,13 +504,13 @@
                 };
                 const parseMoney = (raw) => {
                     if (!raw) return null;
-                    let value = raw.replace(/[^\\d.,]/g, '');
+                    let value = raw.replace(/[^\d.,]/g, '');
                     if (value.includes('.') && value.includes(',')) {
-                        value = value.replace(/\\./g, '').replace(',', '.');
+                        value = value.replace(/\./g, '').replace(',', '.');
                     } else if (value.includes(',')) {
                         value = value.replace(',', '.');
-                    } else if (/^\\d{1,3}(\\.\\d{3})+$/.test(value)) {
-                        value = value.replace(/\\./g, '');
+                    } else if (/^\d{1,3}(\.\d{3})+$/.test(value)) {
+                        value = value.replace(/\./g, '');
                     }
                     const n = Number(value);
                     return Number.isFinite(n) && n > 0 ? n : null;
@@ -532,44 +532,44 @@
                     frecuenciaRaw = embedded.frecuencia || 'mensual';
                 } else {
                     nombreRaw = findMatch([
-                        /Nombre\\s*:\\s*(.+?)\\s+(?:D\\.?N\\.?I\\.?\\s*:)/i
+                        /Nombre\s*:\s*(.+?)\s+(?:D\.?N\.?I\.?\s*:)/i
                     ], solicBlock) || findMatch([
-                        /(?:Nombre(?:\\s+Completo)?|Deudor|Cliente|Titular|Sr\\.?|Sra\\.?)\\s*[:\\-]?\\s*([A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+(?:\\s+[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+){0,5})(?=\\s+(?:D\\.?N\\.?I\\.?|Documento|Monto|Capital|Pr[ée]stamo|Plazo|Inter[eé]s|Cuotas|Fecha|Domicilio)|[,;.]|$)/i,
-                        /([A-ZÁÉÍÓÚÜÑ]+(?:\\s+[A-ZÁÉÍÓÚÜÑ]+){1,5})\\s+(?:D\\.?N\\.?I\\.?|Documento)/i
+                        /(?:Nombre(?:\s+Completo)?|Deudor|Cliente|Titular|Sr\.?|Sra\.?)\s*[:\-]?\s*([A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+(?:\s+[A-Za-zÁÉÍÓÚÜáéíóúüÑñ]+){0,5})(?=\s+(?:D\.?N\.?I\.?|Documento|Monto|Capital|Pr[ée]stamo|Plazo|Inter[eé]s|Cuotas|Fecha|Domicilio)|[,;.]|$)/i,
+                        /([A-ZÁÉÍÓÚÜÑ]+(?:\s+[A-ZÁÉÍÓÚÜÑ]+){1,5})\s+(?:D\.?N\.?I\.?|Documento)/i
                     ]);
                     dniRaw = findMatch([
-                        /D\\.?\\s*N\\.?\\s*I\\.?\\s*:\\s*([0-9]{1,2}(?:\\.[0-9]{3}){2}|[0-9]{7,8})/i
+                        /D\.?\s*N\.?\s*I\.?\s*:\s*([0-9]{1,2}(?:\.[0-9]{3}){2}|[0-9]{7,8})/i
                     ], solicBlock) || findMatch([
-                        /(?:D\\.?\\s*N\\.?\\s*I\\.?|Documento|Nro\\.?\\s*de?\\s*documento)[^\\d]{0,15}([0-9]{1,2}(?:\\.[0-9]{3}){2}|[0-9]{7,8})/i,
-                        /\\b([0-9]{2}\\.[0-9]{3}\\.[0-9]{3})\\b/
+                        /(?:D\.?\s*N\.?\s*I\.?|Documento|Nro\.?\s*de?\s*documento)[^\d]{0,15}([0-9]{1,2}(?:\.[0-9]{3}){2}|[0-9]{7,8})/i,
+                        /\b([0-9]{2}\.[0-9]{3}\.[0-9]{3})\b/
                     ]);
                     telefonoRaw = findMatch([
-                        /(?:Tel[ée]fono|Celular|Cel\\.?|Tel\\.?)\\s*[:\\-]?\\s*([+0-9][0-9\\s\\-()]{6,18})/i
+                        /(?:Tel[ée]fono|Celular|Cel\.?|Tel\.?)\s*[:\-]?\s*([+0-9][0-9\s\-()]{6,18})/i
                     ], solicBlock) || '';
                     montoRaw = findMatch([
-                        /la\\s+cantidad\\s+de\\s*\\$\\s*([0-9][0-9.,]*)/i,
-                        /(?:Monto\\s+(?:inicial|solicitado|prestado)?|Capital|Pr[ée]stamo|Importe\\s+(?:solicitado|total)?|Valor\\s+del\\s+pr[ée]stamo)[^\\d$]{0,20}\\$?\\s*([0-9][0-9.,]*)/i,
-                        /\\$\\s*([0-9]{1,3}(?:\\.[0-9]{3})+(?:,[0-9]{1,2})?|[0-9]{4,}(?:,[0-9]{1,2})?)/
+                        /la\s+cantidad\s+de\s*\$\s*([0-9][0-9.,]*)/i,
+                        /(?:Monto\s+(?:inicial|solicitado|prestado)?|Capital|Pr[ée]stamo|Importe\s+(?:solicitado|total)?|Valor\s+del\s+pr[ée]stamo)[^\d$]{0,20}\$?\s*([0-9][0-9.,]*)/i,
+                        /\$\s*([0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?|[0-9]{4,}(?:,[0-9]{1,2})?)/
                     ]);
                     cuotasRaw = findMatch([
-                        /en\\s+([0-9]{1,2})\\s+cuotas/i,
-                        /(?:Cantidad\\s+de\\s+cuotas|N[úu]mero\\s+de\\s+cuotas|Cuotas|Plazo)[^\\d]{0,20}([0-9]{1,2})/i,
-                        /\\b([0-9]{1,2})\\s*(?:cuotas|pagos|mensualidades)\\b/i
+                        /en\s+([0-9]{1,2})\s+cuotas/i,
+                        /(?:Cantidad\s+de\s+cuotas|N[úu]mero\s+de\s+cuotas|Cuotas|Plazo)[^\d]{0,20}([0-9]{1,2})/i,
+                        /\b([0-9]{1,2})\s*(?:cuotas|pagos|mensualidades)\b/i
                     ]);
                     interesRaw = findMatch([
-                        /inter[eé]s\\s+del\\s+([0-9]+(?:[.,][0-9]+)?)\\s*%/i,
-                        /(?:Inter[eé]s(?:\\s+mensual)?|Tasa(?:\\s+de\\s+inter[eé]s)?)[^\\d]{0,15}([0-9]+(?:[.,][0-9]+)?)\\s*%/i,
-                        /([0-9]+(?:[.,][0-9]+)?)\\s*%\\s*(?:mensual|de\\s+inter[eé]s)/i
+                        /inter[eé]s\s+del\s+([0-9]+(?:[.,][0-9]+)?)\s*%/i,
+                        /(?:Inter[eé]s(?:\s+mensual)?|Tasa(?:\s+de\s+inter[eé]s)?)[^\d]{0,15}([0-9]+(?:[.,][0-9]+)?)\s*%/i,
+                        /([0-9]+(?:[.,][0-9]+)?)\s*%\s*(?:mensual|de\s+inter[eé]s)/i
                     ]);
                     fechaRaw = findMatch([
-                        /(?:Fecha(?:\\s+de\\s+(?:inicio|firma|emisi[oó]n))?|Firmado\\s+el)[^\\d]{0,15}([0-3]?\\d[\\/.-][01]?\\d[\\/.-]\\d{4})/i,
-                        /\\b([0-3]?\\d[\\/.-][01]?\\d[\\/.-]\\d{4})\\b/
+                        /(?:Fecha(?:\s+de\s+(?:inicio|firma|emisi[oó]n))?|Firmado\s+el)[^\d]{0,15}([0-3]?\d[\/.-][01]?\d[\/.-]\d{4})/i,
+                        /\b([0-3]?\d[\/.-][01]?\d[\/.-]\d{4})\b/
                     ]);
                     frecuenciaRaw = 'mensual';
                 }
 
-                const nombre = nombreRaw ? nombreRaw.replace(/\\s+/g, ' ').toUpperCase() : '';
-                const dni = dniRaw ? dniRaw.replace(/\\./g, '') : '';
+                const nombre = nombreRaw ? nombreRaw.replace(/\s+/g, ' ').toUpperCase() : '';
+                const dni = dniRaw ? dniRaw.replace(/\./g, '') : '';
                 const telefono = telefonoRaw ? telefonoRaw.trim() : '';
                 const montoInicial = parseMoney(montoRaw);
                 const numCuotasParsed = cuotasRaw ? parseInt(cuotasRaw, 10) : NaN;
@@ -589,9 +589,9 @@
                     const preview = cleanText.slice(0, 900);
                     throw new Error(
                         "Pude leer el archivo, pero no identifiqué con seguridad: " + missing.join(", ") +
-                        ". No cargué la ficha para evitar registrar datos incorrectos.\\n\\n" +
-                        "Revisá que el PDF tenga texto legible y que los campos estén identificados (Nombre, DNI, Monto y Cuotas).\\n\\n" +
-                        "Texto detectado (primeros caracteres):\\n" + preview
+                        ". No cargué la ficha para evitar registrar datos incorrectos.\n\n" +
+                        "Revisá que el PDF tenga texto legible y que los campos estén identificados (Nombre, DNI, Monto y Cuotas).\n\n" +
+                        "Texto detectado (primeros caracteres):\n" + preview
                     );
                 }
 
@@ -601,7 +601,7 @@
                 const valorCuota = Math.round(montoTotal / numCuotas);
 
                 // Evitar duplicados obvios al volver a cargar el mismo pagaré.
-                const duplicate = activeClients.some(c => String(c.dni).replace(/\\D/g, '') === dni.replace(/\\D/g, '') &&
+                const duplicate = activeClients.some(c => String(c.dni).replace(/\D/g, '') === dni.replace(/\D/g, '') &&
                     Number(c.montoInicial) === montoInicial && c.fechaInicio === (fechaPagaré || c.fechaInicio));
                 if (duplicate) {
                     throw new Error("Ya existe una ficha activa con el mismo DNI y monto. No se creó un duplicado.");
@@ -692,7 +692,7 @@
             document.getElementById('mNombre').value = cl.nombre || '';
             document.getElementById('mDni').value = cl.dni || '';
             document.getElementById('mTelefono').value = cl.telefono || '';
-            document.getElementById('mMonto').value = String(cl.montoInicial || '').replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');
+            document.getElementById('mMonto').value = String(cl.montoInicial || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
             document.getElementById('mInteres').value = cl.interesMensual ?? '';
             document.getElementById('mCuotas').value = cl.numCuotas || '';
             document.getElementById('mFrecuencia').value = cl.frecuencia || 'mensual';
@@ -708,17 +708,17 @@
         // Pone los puntos de miles mientras se escribe (1500000 -> 1.500.000)
         function formatMonto(el) {
             const caret = el.selectionStart;
-            const digitsBeforeCaret = el.value.slice(0, caret).replace(/\\D/g, '').length;
-            const digits = el.value.replace(/\\D/g, '').replace(/^0+(?=\\d)/, '');
-            el.value = digits.replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');
+            const digitsBeforeCaret = el.value.slice(0, caret).replace(/\D/g, '').length;
+            const digits = el.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+            el.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
             let pos = 0, seen = 0;
             while (pos < el.value.length && seen < digitsBeforeCaret) {
-                if (/\\d/.test(el.value[pos])) seen++;
+                if (/\d/.test(el.value[pos])) seen++;
                 pos++;
             }
             try { el.setSelectionRange(pos, pos); } catch (e) {}
         }
-        const montoValue = () => Number(document.getElementById('mMonto').value.replace(/\\D/g, '')) || 0;
+        const montoValue = () => Number(document.getElementById('mMonto').value.replace(/\D/g, '')) || 0;
 
         function updateManualPreview() {
             const monto = montoValue();
@@ -873,7 +873,7 @@
 
         // ===== GANANCIA MENSUAL =====
         const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        const fmtMoney = n => '$' + String(Math.round(n)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');
+        const fmtMoney = n => '$' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         const ymKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         let profitOpen = false;
 
@@ -1005,7 +1005,7 @@
                 emptyActive.classList.remove('hidden');
             } else {
                 emptyActive.classList.add('hidden');
-                const tsOf = c => Number((String(c.id).match(/_(\\d{10,})/) || [])[1]) || 0;
+                const tsOf = c => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
                 const colCount = window.matchMedia('(min-width: 768px)').matches ? 2 : 1;
                 const colEls = [];
                 for (let k = 0; k < colCount; k++) {
@@ -1199,7 +1199,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -1230,7 +1230,7 @@
             if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
             return JSON.stringify(v === undefined ? null : v);
         };
-        const tsOf = (c) => Number((String(c.id).match(/_(\\d{10,})/) || [])[1]) || 0;
+        const tsOf = (c) => Number((String(c.id).match(/_(\d{10,})/) || [])[1]) || 0;
 
         function showLogin(msg, showBtn) {
             document.body.classList.remove('cloud-ok');
@@ -1305,14 +1305,26 @@
             if (ops > 0) await batch.commit();
         }
 
+        getRedirectResult(auth).catch((e) => {
+            console.error(e);
+            showLogin('No se pudo completar el inicio de sesión (' + (e && e.code ? e.code : 'error') + '). Intentá nuevamente.', true);
+        });
+
         async function login() {
+            const provider = new GoogleAuthProvider();
             try {
                 loginBtn.classList.add('hidden');
                 loginMsg.textContent = 'Abriendo acceso con Google…';
-                await signInWithPopup(auth, new GoogleAuthProvider());
+                await signInWithPopup(auth, provider);
             } catch (e) {
                 console.error(e);
-                showLogin('No se pudo iniciar sesión. Si el navegador bloqueó la ventana emergente, permitila e intentá de nuevo.', true);
+                const code = e && e.code ? e.code : '';
+                if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+                    loginMsg.textContent = 'Redirigiendo a Google…';
+                    await signInWithRedirect(auth, provider);
+                    return;
+                }
+                showLogin('No se pudo iniciar sesión' + (code ? ' (' + code + ')' : '') + '. Tocá "Entrar con Google" para reintentar.', true);
             }
         }
 
@@ -1336,8 +1348,4 @@
         window.cloudApi = { login, logout, sync };
     </script>
 </body>
-</html>'''
-
-with open('control.html', 'w', encoding='utf-8') as f:
-    f.write(html_code)
-print("control.html generado con éxito.")
+</html>
