@@ -132,6 +132,17 @@
             transform: translateY(0);
         }
     </style>
+    <script>
+        window.addEventListener('error', function (ev) {
+            var m = document.getElementById('loginMsg');
+            if (m) m.textContent = 'Error de carga: ' + (ev.message || 'desconocido') + (ev.lineno ? ' (línea ' + ev.lineno + ')' : '');
+        });
+        window.addEventListener('unhandledrejection', function (ev) {
+            var m = document.getElementById('loginMsg');
+            var r = ev.reason;
+            if (m) m.textContent = 'Error de conexión: ' + (r && (r.code || r.message) ? (r.code || r.message) : String(r));
+        });
+    </script>
 </head>
 <body class="min-h-screen text-slate-800 pb-12">
 
@@ -544,7 +555,7 @@
                         /\b([0-9]{2}\.[0-9]{3}\.[0-9]{3})\b/
                     ]);
                     telefonoRaw = findMatch([
-                        /(?:Tel[ée]fono|Celular|Cel\.?|Tel\.?)\s*[:\-]?\s*([+0-9][0-9\s\-()]{6,18})/i
+                        /(?:Tel[ée]fono|Celular|Cel\.?|Tel\.?)\s*[:\-]?\s*([+0-9][0-9\s()\-]{6,18})/i
                     ], solicBlock) || '';
                     montoRaw = findMatch([
                         /la\s+cantidad\s+de\s*\$\s*([0-9][0-9.,]*)/i,
@@ -1213,9 +1224,17 @@
 
         // Las cuentas autorizadas NO están en este código: se definen solo en las reglas de Firestore (Firebase).
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (initErr) {
+            console.error(initErr);
+            const m = document.getElementById('loginMsg');
+            if (m) m.textContent = 'Error al iniciar Firebase: ' + (initErr.message || initErr);
+            throw initErr;
+        }
 
         const loginScreen = document.getElementById('loginScreen');
         const loginMsg = document.getElementById('loginMsg');
